@@ -28,7 +28,7 @@ python -m provenance investigate --agent codex --case-dir ./work/live-normal
 python -m provenance investigate --agent recorded --responses ./examples/recorded-repair.json --case-dir ./work/replay
 ```
 
-Both commands require a running Linux Docker engine. Live mode also requires a logged-in Codex CLI whose tool restrictions pass preflight. All 113 ordinary checks and four real Docker acceptance checks pass. Live acceptance remains pending because the installed Codex CLI fails a restriction preflight. See the [observed verification evidence](docs/agent-investigation.md#verification-evidence-on-october-7-2026).
+Both commands require a running Linux Docker engine. Live mode also requires a logged-in Codex CLI whose tool restrictions pass preflight. All 121 ordinary checks and five real Docker acceptance checks pass. Live acceptance remains pending because the installed Codex CLI fails a restriction preflight. See the [observed verification evidence](docs/agent-investigation.md#verification-evidence-on-october-7-2026).
 
 The three questions to keep separate are:
 

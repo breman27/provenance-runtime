@@ -4,12 +4,14 @@ import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 from provenance import Store, Runtime, why
 from provenance.clients.repo_repair.agent import RecordedAgent
 from provenance.clients.repo_repair.case import (prepare_case, capture_snapshot, candidate_snapshot,
                                                  GOOD_SOURCE, BAD_SOURCE, TARGET, TEST_PATH, TEST_SOURCE)
 from provenance.clients.repo_repair.coordinator import InvestigationOptions, run_investigation, fixture_policy
 from provenance.clients.repo_repair.verifier import DockerVerifier
+from provenance.clients.repo_repair.process import run_process
 from tests.investigation_support import decision_dict
 
 
@@ -84,3 +86,28 @@ class DockerAcceptanceTests(unittest.TestCase):
             receipt_action = [p.node_id for p in store.get(report.effect_id).parents if p.role == 'action']
             self.assertEqual(receipt_action, [report.action_id])
             self.assertNotEqual(receipt_action, [report.old_action['action_id']])
+
+    def test_real_runner_faults_cannot_pass_and_timeout_container_is_removed(self):
+        # Host checker faults, injected only by test code; candidate constraints stay intact.
+        faults = ('print(\'{"suite":"targeted_tests","tests_run":0}\')\n',
+                  'print("malformed checker output")\n', 'import time\ntime.sleep(60)\n')
+        original_read = Path.read_bytes
+        for index, source in enumerate(faults):
+            with self.subTest(fault=index):
+                case = prepare_case(self.root / f'fault-{index}')
+                snapshot = capture_snapshot(case, case.good_revision)
+                names = []
+                def read(path):
+                    if path.name == 'runner.py' and 'provenance' in path.parts: return source.encode()
+                    return original_read(path)
+                def execute(argv, *args, **kwargs):
+                    if '--name' in argv: names.append(argv[argv.index('--name') + 1])
+                    return run_process(argv, *args, **kwargs)
+                with patch.object(Path, 'read_bytes', read), patch('provenance.clients.repo_repair.verifier.run_process', side_effect=execute):
+                    result = self.verifier.test(snapshot, case, 'targeted_tests')
+                self.assertFalse(result.passed)
+                self.assertEqual(result.outcome, 'infrastructure_error')
+                self.assertEqual(len(names), 1)
+                absent = run_process(('docker', 'inspect', names[0]), case.root, timeout=10)
+                self.assertNotEqual(absent.returncode, 0)
+                self.assertIn(b'no such', absent.stderr.lower())

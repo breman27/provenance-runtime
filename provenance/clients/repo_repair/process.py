@@ -17,10 +17,9 @@ class ProcessResult:
     output_exceeded: bool
 
 
-def _stop(process):
+def _stop(process, job=None):
     if os.name == 'nt':
-        subprocess.run(('taskkill', '/PID', str(process.pid), '/T', '/F'), stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
+        job.terminate()
     else:
         try: os.killpg(process.pid, signal.SIGKILL)
         except ProcessLookupError: pass
@@ -30,9 +29,22 @@ def _stop(process):
 
 def run_process(argv, cwd, stdin=None, timeout=30, max_output=1048576):
     start = time.monotonic()
-    options = {'creationflags': subprocess.CREATE_NO_WINDOW} if os.name == 'nt' else {'start_new_session': True}
-    process = subprocess.Popen(tuple(argv), cwd=cwd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE, shell=False, **options)
+    job = None
+    if os.name == 'nt':
+        from .windows_job import WindowsJob
+        job = WindowsJob()
+    options = {'creationflags': subprocess.CREATE_NO_WINDOW | 0x00000004} if job else {'start_new_session': True}  # CREATE_SUSPENDED
+    try:
+        process = subprocess.Popen(tuple(argv), cwd=cwd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE, shell=False, **options)
+        if job:
+            try: job.attach_and_resume(process)
+            except BaseException:
+                process.kill(); process.wait(timeout=10)
+                raise
+    except BaseException:
+        if job: job.close()
+        raise
     buffers = [bytearray(), bytearray()]
     lock = threading.Lock()
     exceeded = threading.Event()
@@ -57,17 +69,18 @@ def run_process(argv, cwd, stdin=None, timeout=30, max_output=1048576):
     for thread in threads: thread.start()
     timed_out = False
     try:
-        while process.poll() is None:
+        while process.poll() is None or any(thread.is_alive() for thread in threads):
             if exceeded.is_set() or time.monotonic() - start >= timeout:
                 timed_out = not exceeded.is_set()
-                _stop(process)
+                _stop(process, job)
                 break
             time.sleep(0.01)
         process.wait(timeout=10)
     except BaseException:
-        _stop(process)
+        _stop(process, job)
         raise
     finally:
+        if job: job.close()
         for thread in threads: thread.join(timeout=10)
     return ProcessResult(process.returncode, bytes(buffers[0]), bytes(buffers[1]),
                          int((time.monotonic() - start) * 1000), timed_out, exceeded.is_set())

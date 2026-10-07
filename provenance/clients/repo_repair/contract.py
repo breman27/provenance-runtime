@@ -100,6 +100,8 @@ def validate_patch(content: str) -> bytes:
     if len(body) != 1 or not isinstance(body[0], ast.FunctionDef):
         fail("PATCH_SHAPE", "proposal", "candidate must define only clamp")
     function = body[0]
+    if any(isinstance(node, ast.FunctionDef) and node is not function for node in nodes):
+        fail('PATCH_SHAPE', 'proposal', 'nested functions and builtin shadowing are forbidden')
     args = function.args
     if (function.name != "clamp" or [a.arg for a in args.args] != ["value", "lower", "upper"]
             or args.posonlyargs or args.kwonlyargs or args.vararg or args.kwarg or args.defaults or args.kw_defaults

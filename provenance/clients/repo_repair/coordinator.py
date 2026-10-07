@@ -82,7 +82,7 @@ def run_investigation(options, agent, verifier):
         verifier.preflight()
         agent.preflight()
         case = prepare_case(Path(options.case_dir))
-        store = Store(case.database)
+        store = Store(safe_path(case.root, 'history.db'))
         runtime = Runtime(store, fixture_policy(), lambda: datetime.now(timezone.utc))
         observer, human = runtime.observer('collector'), runtime.observer('human')
         tester, issuer, controller = runtime.verifier('tester'), runtime.issuer('issuer'), runtime.controller('controller')
@@ -214,8 +214,15 @@ def run_investigation(options, agent, verifier):
         elif isinstance(error, ProvenanceError): detail = dict(code=error.problem.code, stage='records', detail=error.problem.detail)
         else: detail = dict(code='IO_ERROR', stage='io', detail=str(error)[:2000])
         report.outcome, report.error, report.reason = 'ERROR', detail, detail['detail']
-        if case: (case.root / 'error.json').write_bytes(canonical_json(detail))
+        if case:
+            try: safe_path(case.root, 'error.json').write_bytes(canonical_json(detail))
+            except (InvestigationError, OSError): pass
     finally:
         if store: store.close()
-        if case: (case.root / 'report.json').write_bytes(canonical_json(report.as_dict()))
+        if case:
+            try: safe_path(case.root, 'report.json').write_bytes(canonical_json(report.as_dict()))
+            except (InvestigationError, OSError) as error:
+                report.outcome = 'ERROR'
+                report.error = {'code': getattr(error, 'code', 'IO_ERROR'), 'stage': 'report', 'detail': str(error)[:2000]}
+                report.reason = report.error['detail']
     return report

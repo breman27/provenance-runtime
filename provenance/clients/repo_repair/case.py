@@ -43,10 +43,12 @@ def _no_redirect(path):
     for component in (current, *current.parents):
         if component.is_symlink():
             fail("CASE_PATH", "case", "case paths cannot contain symlinks")
-        if component.exists():
+        try:
             attrs = getattr(component.lstat(), "st_file_attributes", 0)
-            if attrs & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0):
-                fail("CASE_PATH", "case", "case paths cannot contain redirected directories")
+        except FileNotFoundError:
+            continue
+        if attrs & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0):
+            fail("CASE_PATH", "case", "case paths cannot contain redirected directories")
 
 
 def safe_path(root: Path, relative: str) -> Path:
@@ -134,7 +136,7 @@ def save_snapshot(case, snapshot):
             target.write_bytes(data)
     manifest = canonical_json({"revision": snapshot.revision, "files": snapshot.file_hashes,
                                "snapshot_hash": snapshot.snapshot_hash})
-    metadata = directory / "snapshot.json"
+    metadata = safe_path(directory, 'snapshot.json')
     if metadata.exists() and metadata.read_bytes() != manifest:
         fail("SNAPSHOT_MISMATCH", "collect", "snapshot manifest was changed")
     if not metadata.exists():
@@ -149,10 +151,10 @@ def prepare_case(root: Path) -> CasePaths:
         fail("CASE_EXISTS", "case", "case directory already exists; earlier data was preserved")
     root.mkdir(parents=True, exist_ok=False)
     repository, artifacts, agent_view = root / "repository", root / "artifacts", root / "agent-view"
-    for directory in (repository / "src", repository / "tests", artifacts, agent_view):
-        directory.mkdir(parents=True, exist_ok=True)
-    (repository / TARGET).write_bytes(GOOD_SOURCE)
-    (repository / TEST_PATH).write_bytes(TEST_SOURCE)
+    for relative in ('repository/src', 'repository/tests', 'artifacts', 'agent-view'):
+        safe_path(root, relative).mkdir(parents=True, exist_ok=True)
+    safe_path(repository, TARGET).write_bytes(GOOD_SOURCE)
+    safe_path(repository, TEST_PATH).write_bytes(TEST_SOURCE)
     _git(repository, "init", "--initial-branch=fixture")
     _git(repository, "config", "core.autocrlf", "false")
     _git(repository, "config", "user.name", "Provenance fixture")
@@ -161,13 +163,13 @@ def prepare_case(root: Path) -> CasePaths:
     _git(repository, "add", "src", "tests")
     _git(repository, "commit", "-m", "working clamp", env=env)
     good = _git(repository, "rev-parse", "HEAD").decode().strip()
-    (repository / TARGET).write_bytes(BAD_SOURCE)
+    safe_path(repository, TARGET).write_bytes(BAD_SOURCE)
     env.update(GIT_AUTHOR_DATE="2026-10-07T00:01:00Z", GIT_COMMITTER_DATE="2026-10-07T00:01:00Z")
     _git(repository, "add", TARGET)
     _git(repository, "commit", "-m", "introduce upper-bound regression", env=env)
     baseline = _git(repository, "rev-parse", "HEAD").decode().strip()
     case = CasePaths(root, repository, artifacts, agent_view, root / "history.db", uuid.uuid4().hex, good, baseline)
-    (root / "case.json").write_bytes(canonical_json({"case_id": case.case_id, "good_revision": good,
+    safe_path(root, 'case.json').write_bytes(canonical_json({"case_id": case.case_id, "good_revision": good,
                                                     "baseline_revision": baseline}))
     save_snapshot(case, capture_snapshot(case, baseline))
     return case

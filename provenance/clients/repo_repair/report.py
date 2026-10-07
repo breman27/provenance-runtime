@@ -7,6 +7,7 @@ from .agent import CodexAgent, RecordedAgent
 from .coordinator import InvestigationOptions, InvestigationReport, run_investigation
 from .errors import InvestigationError
 from .verifier import DockerVerifier
+from .case import safe_path
 
 
 def _short(node_id): return node_id[:19] + '…' if node_id else 'none'
@@ -67,7 +68,16 @@ def run_cli(args):
     text = render_report(report)
     # Only a case actually created by this invocation can receive output files.
     if report.evidence and Path(report.case_dir).is_dir():
-        (Path(report.case_dir) / 'report.md').write_text(text, encoding='utf-8', newline='\n')
+        try: safe_path(Path(report.case_dir), 'report.md').write_text(text, encoding='utf-8', newline='\n')
+        except (InvestigationError, OSError) as error:
+            report.outcome = 'ERROR'
+            report.error = {'code': getattr(error, 'code', 'IO_ERROR'), 'stage': 'report', 'detail': str(error)[:2000]}
+            report.reason = report.error['detail']
+            text = render_report(report)
+            try:
+                safe_path(Path(report.case_dir), 'report.json').write_bytes(canonical_json(report.as_dict()))
+                safe_path(Path(report.case_dir), 'error.json').write_bytes(canonical_json(report.error))
+            except (InvestigationError, OSError): pass
     print(canonical_json(report.as_dict()).decode('utf-8') if args.json else text, end='\n' if args.json else '')
     if report.error and report.error['stage'] == 'options': return 2
     return {'ACCEPTED': 0, 'REFUSED': 3, 'UNRESOLVED': 4, 'ERROR': 1}[report.outcome]

@@ -4,7 +4,7 @@ import uuid
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-from ...format import parse_json
+from ...format import parse_json, canonical_json
 from .case import TARGET, TEST_PATH, TEST_SOURCE, digest, save_snapshot, snapshot_value, safe_path
 from .contract import validate_patch
 from .errors import fail
@@ -81,7 +81,7 @@ class DockerVerifier:
         trusted.mkdir(exist_ok=True)
         runner = Path(__file__).with_name('runner.py').read_bytes()
         for name, data in [('runner.py', runner), ('test_clamp.py', TEST_SOURCE)]:
-            target = trusted / name
+            target = safe_path(trusted, name)
             if target.exists() and target.read_bytes() != data:
                 fail('TRUSTED_ARTIFACT', 'verify', 'trusted runner artifact changed')
             target.write_bytes(data)
@@ -96,7 +96,7 @@ class DockerVerifier:
             result = run_process(argv, case.root, timeout=30)
         finally:
             # A killed Docker client may leave its container running. Scope cleanup to this unique name.
-            run_process((self.command, 'rm', '--force', name), case.root, timeout=10)
+            self._cleanup(case, name)
         outcome, count, failures, errors = 'infrastructure_error', 0, 0, 0
         if not result.timed_out and not result.output_exceeded:
             try:
@@ -116,6 +116,24 @@ class DockerVerifier:
         return TestResult(suite, self.image_id, snapshot.snapshot_hash, snapshot.file_hashes[TARGET], count,
                           failures, errors, result.returncode, result.elapsed_ms, outcome,
                           result.stdout.decode('utf-8', errors='replace'), result.stderr.decode('utf-8', errors='replace'))
+
+    def _cleanup(self, case, name):
+        def absent(result):
+            return (not result.timed_out and not result.output_exceeded and result.returncode != 0
+                    and b'no such container' in result.stderr.lower())
+        diagnostics = []
+        for attempt in range(2):
+            try:
+                result = run_process((self.command, 'rm', '--force', name), case.root, timeout=10)
+            except OSError as error:
+                diagnostics.append(str(error)[:500])
+                continue
+            if (result.returncode == 0 and not result.timed_out and not result.output_exceeded) or absent(result):
+                return
+            diagnostics.append(result.stderr.decode('utf-8', errors='replace')[:500] or 'cleanup timeout/output failure')
+        payload = {'container_name': name, 'cleanup': 'unconfirmed', 'diagnostics': diagnostics}
+        safe_path(case.root, 'artifacts/cleanup-' + name + '.json').write_bytes(canonical_json(payload))
+        fail('CONTAINER_CLEANUP', 'verify', 'Could not confirm removal of owned container ' + name + ': ' + '; '.join(diagnostics))
 
 
 def record_test(runtime, observer, verifier_handle, action_id, result, artifact_refs):

@@ -7,6 +7,7 @@ from ...format import canonical_json
 from .contract import AgentRequest, AgentRun, decode_decision, response_schema
 from .errors import fail
 from .process import run_process
+from .case import safe_path
 
 DISABLED_FEATURES = ('shell_tool', 'unified_exec', 'apps', 'plugins', 'hooks', 'multi_agent',
                      'browser_use', 'browser_use_external', 'browser_use_full_cdp_access', 'computer_use',
@@ -38,14 +39,14 @@ def _prepare(request, output_dir):
     packet = canonical_json(request.packet())
     if len(packet) > 131072:
         fail('INPUT_LIMIT', 'agent', 'agent packet exceeds 128 KiB')
-    output_dir.mkdir(parents=True, exist_ok=False)
-    (output_dir / 'input.json').write_bytes(packet)
+    safe_path(output_dir.parent, output_dir.name).mkdir(parents=True, exist_ok=False)
+    safe_path(output_dir, 'input.json').write_bytes(packet)
     return packet
 
 
 def _save(output_dir, run):
-    (output_dir / 'decision.json').write_bytes(canonical_json(run.decision.as_dict()))
-    (output_dir / 'metadata.json').write_bytes(canonical_json(dict(backend=run.backend, live_agent=run.live, **run.metadata)))
+    safe_path(output_dir, 'decision.json').write_bytes(canonical_json(run.decision.as_dict()))
+    safe_path(output_dir, 'metadata.json').write_bytes(canonical_json(dict(backend=run.backend, live_agent=run.live, **run.metadata)))
     return run
 
 
@@ -103,8 +104,8 @@ class CodexAgent:
         if self.cli_version is None:
             fail('AGENT_UNAVAILABLE', 'agent', 'Codex preflight has not succeeded')
         packet = _prepare(request, output_dir)
-        schema = output_dir / 'schema.json'
-        final = output_dir / 'final.json'
+        schema = safe_path(output_dir, 'schema.json')
+        final = safe_path(output_dir, 'final.json')
         schema.write_bytes(canonical_json(response_schema(tuple(e.alias for e in request.evidence))))
         config = tuple(arg for value in CONFIG for arg in ('-c', value))
         model = ('--model', self.model) if self.model else ()
@@ -131,7 +132,8 @@ class CodexAgent:
                 usage = event.get('usage', {})
                 if type(usage) is dict:
                     tokens = {k: v for k, v in usage.items() if k in ('input_tokens', 'cached_input_tokens', 'output_tokens') and type(v) is int and 0 <= v <= 2**53-1}
-        if not final.is_file() or final.is_symlink():
+        final = safe_path(output_dir, 'final.json')
+        if not final.is_file():
             fail('AGENT_OUTPUT', 'agent', 'Codex did not produce a final schema response')
         with final.open('rb') as stream: raw = stream.read(1048577)
         decision = decode_decision(raw, request.evidence)

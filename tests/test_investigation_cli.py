@@ -75,6 +75,18 @@ class CliTests(unittest.TestCase):
         self.assertIn('CASE_EXISTS', out)
         self.assertEqual(sentinel.read_text(), 'keep')
 
+    def test_redirected_markdown_report_preserves_error_in_safe_json(self):
+        original = Path.is_symlink
+        def redirected(path): return path.name == 'report.md' or original(path)
+        with patch.object(Path, 'is_symlink', redirected):
+            code, out, _ = self.invoke(('--json',))
+        self.assertEqual(code, 1)
+        self.assertEqual(json.loads(out)['error']['stage'], 'report')
+        persisted = json.loads((self.root / 'case' / 'report.json').read_bytes())
+        self.assertEqual(persisted['outcome'], 'ERROR')
+        self.assertEqual(persisted['error']['stage'], 'report')
+        self.assertFalse((self.root / 'case' / 'report.md').exists())
+
     def test_readable_hint_later_interpretation_and_backend(self):
         report = InvestigationReport('REFUSED', 'codex', True, 'case', 'stale-source',
              rounds=[dict(round=1, claim_statement='First claim', summary='First summary', claim_id='a', action_id='b'),

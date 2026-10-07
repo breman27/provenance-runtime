@@ -44,12 +44,12 @@ class VerifierTests(unittest.TestCase):
                                   (self.process(code=1), False), (self.process(timeout=True), False),
                                   (self.process(overflow=True), False), (self.process(self.output(suite='full_suite')), False),
                                   (self.process(self.output(candidate_hash='wrong')), False)]:
-            with self.subTest(process=process), patch('provenance.clients.repo_repair.verifier.run_process', return_value=process):
+            with self.subTest(process=process), patch('provenance.clients.repo_repair.verifier.run_process', side_effect=[process, self.process(b'', code=0)]):
                 result = self.verifier.test(self.snapshot, self.case, 'targeted_tests')
                 self.assertEqual(result.passed, expected)
 
     def test_docker_boundaries_and_owned_cleanup(self):
-        with patch('provenance.clients.repo_repair.verifier.run_process', return_value=self.process(timeout=True)) as call:
+        with patch('provenance.clients.repo_repair.verifier.run_process', side_effect=[self.process(timeout=True), self.process(b'', code=0)]) as call:
             self.verifier.test(self.snapshot, self.case, 'targeted_tests')
         argv = call.call_args_list[0].args[0]
         for option, value in [('--network', 'none'), ('--user', '65534:65534'), ('--cpus', '1'),

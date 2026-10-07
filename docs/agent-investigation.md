@@ -85,13 +85,13 @@ Reports distinguish `CLAIMED`, `TESTED`, and the final result:
 | `ERROR` | 1 | A prerequisite, adapter, verifier, or I/O failure stopped the investigation. |
 | Invalid usage | 2 | Options/response input were invalid; existing cases are preserved. |
 
-Partial created cases retain their evidence and precise error stage. Preflight failures occur before case creation. Friendly names and full provenance references let a human inspect why work was proposed and why a receipt was accepted or refused.
+Partial created cases retain their evidence and precise error stage. A report-write failure can occur after a receipt was recorded; its existing Effect ID remains available. Preflight failures occur before case creation. Friendly names and full provenance references let a human inspect why work was proposed and why a receipt was accepted or refused.
 
 ## Verification evidence on October 7, 2026
 
 Unit checks cover real Git captures, strict proposals, process bounds, restricted Docker arguments, action/hash binding, human ordering, stale cascade/refusal, and CLI output. Their verifier/provider doubles do not prove actual container or live-model acceptance.
 
-All 113 ordinary tests and four explicit Docker acceptance tests passed. Actual Docker runs confirmed the baseline failure, the correct candidate passing one targeted and eight full-suite cases, wrong-candidate refusal, one replay receipt with idempotent retry, and stale-action refusal followed by fresh-action acceptance. The replay runs are not live reasoning evidence.
+All 121 ordinary tests and five explicit Docker acceptance tests passed after independent review fixes. Actual Docker runs confirmed the baseline failure, the correct candidate passing one targeted and eight full-suite cases, wrong-candidate refusal, one replay receipt with idempotent retry, and stale-action refusal followed by fresh-action acceptance. Additional real containers confirmed zero/malformed checker output cannot pass and a timed-out container is removed. The replay runs are not live reasoning evidence. See the [verification record](agent-investigation-verification.md).
 
 Docker Desktop 4.73.0 initially errored on inaccessible Windows AF_UNIX sockets. Two runtime socket folders were preserved as backups during diagnosis; images, containers, and volumes were not reset. Startup retries stopped after the user reported the error. The engine subsequently responded to the read-only preflight and executed the acceptance tests successfully.
 

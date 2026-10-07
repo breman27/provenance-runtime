@@ -1,0 +1,6 @@
+[project]
+name = "provenance-runtime"
+version = "0.1.0"
+description = "Immutable evidence provenance with a local verified effect boundary"
+requires-python = ">=3.12"
+dependencies = []

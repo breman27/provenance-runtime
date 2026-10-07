@@ -1,0 +1,53 @@
+[
+  {
+    "body": {
+      "schema_version": "0.1",
+      "kind": "Observation",
+      "payload": {
+        "message": "failed"
+      },
+      "parents": [],
+      "producer": "fixture:runner",
+      "created_at": "2026-10-07T00:00:00.000000Z"
+    },
+    "canonical": "{\"created_at\":\"2026-10-07T00:00:00.000000Z\",\"kind\":\"Observation\",\"parents\":[],\"payload\":{\"message\":\"failed\"},\"producer\":\"fixture:runner\",\"schema_version\":\"0.1\"}",
+    "id": "sha256:b22f684430e827d0b2b51a8256e0000c9d1941bcf677f2aa1c695196b0d44f95"
+  },
+  {
+    "body": {
+      "schema_version": "0.1",
+      "kind": "Observation",
+      "payload": {
+        "message": "code changed"
+      },
+      "parents": [],
+      "producer": "fixture:runner",
+      "created_at": "2026-10-07T00:00:00.000000Z"
+    },
+    "canonical": "{\"created_at\":\"2026-10-07T00:00:00.000000Z\",\"kind\":\"Observation\",\"parents\":[],\"payload\":{\"message\":\"code changed\"},\"producer\":\"fixture:runner\",\"schema_version\":\"0.1\"}",
+    "id": "sha256:79ec4128b8876e90962b1819f0a589dc50155d48fdf67edb013f633c49d09f46"
+  },
+  {
+    "body": {
+      "schema_version": "0.1",
+      "kind": "Claim",
+      "payload": {
+        "statement": "change caused failure"
+      },
+      "parents": [
+        {
+          "role": "evidence",
+          "id": "sha256:79ec4128b8876e90962b1819f0a589dc50155d48fdf67edb013f633c49d09f46"
+        },
+        {
+          "role": "evidence",
+          "id": "sha256:b22f684430e827d0b2b51a8256e0000c9d1941bcf677f2aa1c695196b0d44f95"
+        }
+      ],
+      "producer": "fixture:reasoner",
+      "created_at": "2026-10-07T00:00:00.000000Z"
+    },
+    "canonical": "{\"created_at\":\"2026-10-07T00:00:00.000000Z\",\"kind\":\"Claim\",\"parents\":[{\"id\":\"sha256:79ec4128b8876e90962b1819f0a589dc50155d48fdf67edb013f633c49d09f46\",\"role\":\"evidence\"},{\"id\":\"sha256:b22f684430e827d0b2b51a8256e0000c9d1941bcf677f2aa1c695196b0d44f95\",\"role\":\"evidence\"}],\"payload\":{\"statement\":\"change caused failure\"},\"producer\":\"fixture:reasoner\",\"schema_version\":\"0.1\"}",
+    "id": "sha256:b6251c28d7f2310e11f64d20576018596b7215a8fafbbc0ea2d02008a42673f8"
+  }
+]

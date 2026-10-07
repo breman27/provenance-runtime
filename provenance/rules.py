@@ -105,6 +105,18 @@ def check_relationships(node: Node, parents: Mapping[str, Node]) -> tuple[Proble
         by_role = {p.role: parents[p.node_id] for p in node.parents}
         if by_role["target"].kind != by_role["replacement"].kind:
             errors.append(Problem("ILLEGAL_PARENT", node.id, "replacement must have target's kind"))
+        target = by_role["target"].id
+        pending, seen = [by_role["replacement"].id], set()
+        while pending:
+            current = pending.pop()
+            if current == target:
+                errors.append(Problem("ILLEGAL_PARENT", node.id, "replacement causally depends on superseded record"))
+                break
+            if current in seen or current not in parents:
+                continue
+            seen.add(current)
+            record = parents[current]
+            pending.extend(p.node_id for p in record.parents if is_causal(record.kind, p.role))
     if node.kind == "Effect":
         action = next(parents[p.node_id] for p in node.parents if p.role == "action")
         authority = next(parents[p.node_id] for p in node.parents if p.role == "authority")

@@ -45,3 +45,46 @@ def alter_payload(store, record, **fields):
     body["payload"].update(fields)
     with store.write_transaction():
         store._db.execute("UPDATE nodes SET body=? WHERE id=?", (canonical_json(body), record.id))
+
+
+def policy_snapshot():
+    return {"version": "fixture-v1", "subject": "fixture:runtime", "observers": ["fixture:runner"],
+            "verifiers": {"fixture:tester": ["targeted_tests", "full_suite"]},
+            "issuers": ["fixture:authority"], "controllers": ["fixture:control"],
+            "requirements": {"repo.repair.simulated": ["targeted_tests", "full_suite"]}}
+
+
+def repair_records(store, include_effect=True):
+    import hashlib
+    records = {}
+    records["failure"] = observation(store)
+    records["code"] = observation(store, "code changed")
+    records["claim"] = claim(store, records["failure"], records["code"])
+    action = node("ProposedAction", {"action_type": "repo.repair.simulated", "resource": "fixture:repo",
+                                     "arguments": {"patch": "fixed"}},
+                  [Parent("justification", records["claim"].id)], "reasoner")
+    records["action"] = action
+    store.put(action)
+    for name in ("targeted_tests", "full_suite"):
+        v = node("Verification", {"verifier_id": "fixture:tester", "check": name, "passed": True},
+                 [Parent("subject", action.id)], "fixture:tester")
+        insert(store, v, "verify")
+        records[name] = v
+    authority = node("Authority", {"issuer_id": "fixture:authority", "subject": "fixture:runtime",
+                                  "action_id": action.id, "action_type": "repo.repair.simulated",
+                                  "resource": "fixture:repo", "allowed": True,
+                                  "expires_at": "2026-10-07T01:00:00.000000Z"},
+                     [Parent("subject", action.id)], "fixture:authority")
+    insert(store, authority, "authorize")
+    records["authority"] = authority
+    if include_effect:
+        policy = policy_snapshot()
+        effect = node("Effect", {"receipt": {"action_id": action.id, "kind": "simulated-repo-repair"},
+                                 "policy": policy,
+                                 "policy_hash": "sha256:" + hashlib.sha256(canonical_json(policy)).hexdigest()},
+                      [Parent("action", action.id), Parent("authority", authority.id)] +
+                      [Parent("verification", records[k].id) for k in ("targeted_tests", "full_suite")],
+                      "fixture:runtime")
+        insert(store, effect, "effect")
+        records["effect"] = effect
+    return records

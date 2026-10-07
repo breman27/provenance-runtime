@@ -150,3 +150,7 @@ class Runtime:
         with self.store.write_transaction():
             check_supersession(self.store, target_id, replacement_id)
             return self.store._insert(record, Admission(principal, "control"))
+
+    def commit(self, action_id: str, verification_ids: tuple[str, ...], authority_id: str | None):
+        from .gate import commit_effect
+        return commit_effect(self, action_id, verification_ids, authority_id)

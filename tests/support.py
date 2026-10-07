@@ -88,3 +88,38 @@ def repair_records(store, include_effect=True):
         insert(store, effect, "effect")
         records["effect"] = effect
     return records
+
+
+def admitted_repair(runtime):
+    from datetime import datetime, timezone
+    store = runtime.store
+    ids = {}
+    for name, message in (("failure", "failed"), ("code", "code changed")):
+        ids[name] = runtime.observe(runtime.observer("fixture:runner"), {"message": message})
+    ids["claim"] = runtime.submit(node("Claim", {"statement": "root cause"},
+                                     [Parent("evidence", ids[k]) for k in ("failure", "code")], "reasoner"))
+    ids["action"] = runtime.submit(node("ProposedAction", {"action_type": "repo.repair.simulated", "resource": "fixture:repo",
+                                                          "arguments": {"patch": "fixed"}},
+                                      [Parent("justification", ids["claim"])], "reasoner"))
+    for check in ("targeted_tests", "full_suite"):
+        ids[check] = runtime.verify(runtime.verifier("fixture:tester"), ids["action"], check, True)
+    ids["authority"] = runtime.authorize(runtime.issuer("fixture:authority"), ids["action"], True,
+                                         datetime(2026, 10, 7, 1, tzinfo=timezone.utc))
+    return {k: store.get(v) for k, v in ids.items()}
+
+
+def crash_worker(path, stage, action_id, verification_ids, authority_id, pipe):
+    """Signal exact transaction boundaries to the parent; no production test hook."""
+    from datetime import datetime, timezone
+    from provenance.store import Store
+    from provenance.runtime import Policy, Runtime
+    with Store(path) as store:
+        runtime = Runtime(store, Policy(**policy_snapshot()), lambda: datetime(2026, 10, 7, tzinfo=timezone.utc))
+        if stage == "before_mapping":
+            def pause_before_mapping(action, effect):
+                pipe.send(stage)
+                pipe.recv()
+            store._bind_local_effect = pause_before_mapping
+        runtime.commit(action_id, verification_ids, authority_id)
+        pipe.send("after_commit")
+        pipe.recv()

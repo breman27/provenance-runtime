@@ -1,6 +1,6 @@
 # Provenance runtime: first prototype
 
-Draft for review — October 7, 2026
+Approved — October 7, 2026
 
 ## What we are proving
 

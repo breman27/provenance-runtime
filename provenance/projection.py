@@ -6,6 +6,7 @@ from .errors import ProvenanceError, fail
 from .model import Node
 from .rules import is_causal
 from .store import Store
+from .validation import check_local_record
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,9 @@ def _controls(store, ancestry, mode):
         record, admission = store.get(node_id), store.admission(node_id)
         if mode == "execution" and (admission is None or admission.operation != "control"):
             continue
+        problems = check_local_record(record, store._indexed_parents(node_id))
+        if problems:
+            raise ProvenanceError(problems[0])
         try:
             candidate = (record.kind in {"Invalidation", "Supersession"}
                          or (admission is not None and admission.operation == "control"))
@@ -121,6 +125,9 @@ def impacted_by(store: Store, node_id: str) -> tuple[str, ...]:
         reverse = {}
         for child_id in store.all_ids():
             record = store.get(child_id)
+            problems = check_local_record(record, store._indexed_parents(child_id))
+            if problems:
+                raise ProvenanceError(problems[0])
             for ref in record.parents:
                 if is_causal(record.kind, ref.role):
                     reverse.setdefault(ref.node_id, set()).add(child_id)

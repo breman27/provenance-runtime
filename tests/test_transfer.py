@@ -6,7 +6,7 @@ from pathlib import Path
 from provenance.errors import ProvenanceError
 from provenance.format import canonical_json
 from provenance.model import Parent
-from provenance.projection import status
+from provenance.projection import status, why
 from provenance.runtime import Runtime, Policy
 from provenance.store import Store
 from tests.support import admitted_repair, policy_snapshot, node, alter_payload
@@ -132,6 +132,20 @@ class TransferTests(unittest.TestCase):
         alter_payload(self.original, self.r["code"], message="tampered")
         with self.assertRaises(ProvenanceError):
             export_graph(self.original)
+
+    def test_inspection_detects_disguised_imported_control(self):
+        control_id = self.runtime.invalidate(self.runtime.controller("fixture:control"), self.r["code"].id, "invalid source")
+        import_graph(self.restored, export_graph(self.original))
+        self.assertEqual(status(self.restored, self.effect), "STALE")
+        body = json.loads(self.restored.get(control_id).canonical_body)
+        body["kind"] = "Observation"
+        with self.restored.write_transaction():
+            self.restored._db.execute("UPDATE nodes SET body=? WHERE id=?", (canonical_json(body), control_id))
+        for query in (status, why):
+            with self.subTest(query=query.__name__):
+                with self.assertRaises(ProvenanceError) as caught:
+                    query(self.restored, self.effect)
+                self.assertEqual(caught.exception.problem.code, "HASH_MISMATCH")
 
 
 if __name__ == "__main__":

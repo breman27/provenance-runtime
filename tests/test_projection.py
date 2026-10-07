@@ -110,6 +110,19 @@ class ProjectionTests(unittest.TestCase):
         with self.assertRaises(ProvenanceError):
             status(self.store, original.id, "execution")
 
+    def test_impacted_by_rejects_removed_reference(self):
+        import json
+        from provenance.format import canonical_json
+        r = repair_records(self.store)
+        self.assertIn(r["effect"].id, impacted_by(self.store, r["code"].id))
+        body = json.loads(r["claim"].canonical_body)
+        body["parents"] = [p for p in body["parents"] if p["id"] != r["code"].id]
+        with self.store.write_transaction():
+            self.store._db.execute("UPDATE nodes SET body=? WHERE id=?", (canonical_json(body), r["claim"].id))
+        with self.assertRaises(ProvenanceError) as caught:
+            impacted_by(self.store, r["code"].id)
+        self.assertEqual(caught.exception.problem.code, "HASH_MISMATCH")
+
     def test_wrong_query_kind_and_mode_are_rejected(self):
         o = observation(self.store)
         for query in (why, evidence_for):

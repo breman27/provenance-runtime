@@ -107,6 +107,8 @@ Exactly-once behavior here concerns a simulated effect inside one SQLite databas
 
 Query node sequences use parent-before-child order with lexical ID tie-breaking. Current status is derived on demand, with INVALID taking precedence over SUPERSEDED and unusable causal parents making descendants STALE. Control target links commit to their targets but are not causal dependencies themselves.
 
+Audit queries check record integrity before using kinds or dependency links for discovery. A corrupted link or a disguised imported control produces a structured integrity error rather than a false clean status or an incomplete impact list.
+
 The default `inspection` mode includes declared imported controls. `execution` applies locally admitted controls. Imports preserve bodies, hashes, relationships, inspection statuses, and historical receipts; they neither restore admission privileges nor populate the local commit mapping. A producer label in imported JSON grants no trust. Re-importing an existing local node does not downgrade its existing local admission. Imported records can be reissued deliberately through the trusted local runtime APIs; import alone never authorizes execution.
 
 ## Format 0.1

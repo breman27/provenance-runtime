@@ -200,3 +200,9 @@ def collect_diff(runtime, observer, case, before, after, alias):
                "diff": data.decode("utf-8"), "diff_hash": digest(data)}
     node_id = runtime.observe(observer, payload)
     return Evidence(alias, node_id, runtime.store.get(node_id).payload)
+
+
+def candidate_snapshot(baseline: Snapshot, patch: bytes) -> Snapshot:
+    files = baseline.files
+    files[TARGET] = patch
+    return snapshot_value(baseline.revision, files)

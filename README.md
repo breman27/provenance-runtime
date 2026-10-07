@@ -10,6 +10,7 @@ This is a local Python/SQLite prototype of a general provenance and action bound
 2. Read [The demo, explained](docs/demo-walkthrough.md) to follow the example and understand every field in its JSON report.
 3. Open the [plain-English demo report](examples/demo-report.md). The matching [raw JSON](examples/demo-report.json) is available when you want to inspect the serialized records.
 4. Use the runnable example below and the [verification record](docs/verification.md) for implementation and test evidence.
+5. Moving computers? Read the [continuation handoff](docs/continue-on-another-computer.md) for setup and the current project state.
 
 ## Why the example is repo repair
 

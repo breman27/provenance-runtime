@@ -31,19 +31,13 @@ The gate requires all three before admitting a new effect. The field name `VALID
 
 ## Run the demonstration
 
-Python 3.12 or later, with no third-party dependencies. From this directory:
+Python 3.12 or later, with no third-party dependencies:
 
-```powershell
+```shell
+git clone https://github.com/breman27/provenance-runtime.git
+cd provenance-runtime
 python -m provenance demo --db :memory:
 python -m unittest discover -s tests -v
-```
-
-On this computer, the confirmed Python runtime can be used directly:
-
-```powershell
-Set-Location 'C:\Users\bsema\Documents\Codex\2026-10-07\alr\outputs\provenance-runtime'
-$provenancePython = 'C:\Users\bsema\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
-& $provenancePython -m provenance demo --db :memory:
 ```
 
 For persistent inspection, pass a fresh path such as `demo.db`. The demonstration refuses a nonempty database without changing its records. A caller of the library may reopen its database and inspect or retry existing receipts.

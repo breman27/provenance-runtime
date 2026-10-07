@@ -35,4 +35,4 @@ These resolve the reviewer's explicitly deferred judgments, in their original or
 3. Hashes establish integrity, not factual truth or producer authentication. The approved IR separates claims from trusted admission. Cost if wrong: truth and identity need separate verification mechanisms.
 4. VALID status remains separate from execution trust. Inspection can replay imported history while commit requires local admission. Cost if wrong: consumers must use the gate rather than treating status alone as authorization.
 
-No deferred Minor findings. The deliverable stays local on `codex/provenance-runtime`; there is no remote or pre-existing integration branch for this new repository.
+No deferred Minor findings. The prototype was developed and verified locally on `codex/provenance-runtime` before its initial public publication.

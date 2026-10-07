@@ -6,7 +6,7 @@ Approved — October 7, 2026
 
 A runtime can track the information that justified an action, check its integrity, and prevent further actions when that justification becomes stale. Reasoning providers supply claims and proposals; the runtime owns observations, verification, authorization, and effects.
 
-This carries forward the scope in **Branch · Revisit Jev idea**, especially the final implementation and test outline. The broader destination is a provider-neutral execution model for uncertain reasoning. This prototype establishes its provenance and action boundary.
+The broader destination is a provider-neutral execution model for uncertain reasoning. This first prototype establishes its provenance and action boundary.
 
 Success: given an effect, return its complete recorded ancestry; detect altered or missing ancestors; invalidate an observation and identify affected descendants; deny a new effect with stale evidence, missing verification, or missing authority; preserve historical effects.
 
@@ -14,11 +14,11 @@ Hashes establish content integrity relative to a retained hash. They do not esta
 
 ## Implementation choice
 
-**Proposed default: Python and SQLite, with standard-library runtime dependencies.** Python keeps the prototype small and SQLite gives us a persistent transactional store. The IR is specified as data, so subsequent implementations can use other languages.
+**Implementation: Python and SQLite, with standard-library runtime dependencies.** Python keeps the prototype small and SQLite gives us a persistent transactional store. The IR is specified as data, so subsequent implementations can use other languages.
 
 TypeScript would make sense if immediate integration with a JavaScript application is the priority; it adds packaging and a SQLite runtime choice. A format-only prototype would be smaller, but would leave persistence, invalidation, and the effect boundary untested. The Python runtime is the proposed compromise.
 
-The workspace is currently empty and has no Git repository. This document is a design deliverable; no product scaffolding or dependencies have been created.
+This design was approved before implementation. The prototype, documentation, examples, and regression tests now accompany it in the repository.
 
 ## Records and relationships
 

@@ -1,8 +1,33 @@
 # Provenance runtime
 
-A working first slice of the vacation idea: immutable evidence ancestry, current justification status, and an effect boundary that requires trusted verification and authority.
+Record the evidence behind a proposed action and permit its effect only when verification and authority satisfy policy.
 
-The runtime accepts provider-neutral claims and proposals. It records a simulated repo-repair effect only when its exact action hash has both required passing checks and matching, current authority. Invalidating an observation makes dependent justifications stale while preserving historical receipts.
+This is a local Python/SQLite prototype of a general provenance and action boundary. Its record model separates observations, claims, proposed actions, verification, permission, and effects. Invalidating an observation makes dependent justifications stale while preserving historical receipts.
+
+## Start here
+
+1. Read [Concepts and terminology](docs/concepts.md) for the general model, record fields, relationship roles, status meanings, and the meaning of `commit`.
+2. Read [The demo, explained](docs/demo-walkthrough.md) to follow the example and understand every field in its JSON report.
+3. Open the [plain-English demo report](examples/demo-report.md). The matching [raw JSON](examples/demo-report.json) is available when you want to inspect the serialized records.
+4. Use the runnable example below and the [verification record](docs/verification.md) for implementation and test evidence.
+
+## Why the example is repo repair
+
+Repo repair is the demonstration scenario for the general runtime. A future repo-maintainer agent could supply claims and proposals while real test tools supply observations and verification. The current fixture manually supplies those inputs to prove the graph and gate behavior.
+
+`Runtime.commit(...)` means **finalize this proposed action through the effect gate**. It is not a Git commit. In this version, the admitted effect is a simulated receipt written to SQLite. There is no repo-maintainer agent, model call, patch application, or PR creation in the fixture.
+
+The record model is provider-neutral. The current gate implements one action type, `repo.repair.simulated`; other real effects need their own execution and recovery integration.
+
+The three questions to keep separate are:
+
+| Question | Mechanism |
+| --- | --- |
+| What information supports this action, and is that history intact and current? | Record parents, hash validation, and derived status. |
+| Did the required checks pass for this exact proposal? | Trusted Verification records and policy requirements. |
+| Is this actor permitted to cause this effect on this resource? | Trusted Authority records and policy scope checks. |
+
+The gate requires all three before admitting a new effect. The field name `VALID` concerns current justification status; permission and passed checks have separate meanings.
 
 ## Run the demonstration
 

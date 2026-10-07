@@ -152,5 +152,15 @@ class Runtime:
             return self.store._insert(record, Admission(principal, "control"))
 
     def commit(self, action_id: str, verification_ids: tuple[str, ...], authority_id: str | None):
+        """Finalize a proposal through the effect gate; this is not a Git commit.
+
+        A fresh action needs intact/current evidence, the required trusted
+        passing verification, and matching trusted authority. The current
+        handler records a simulated local repair receipt in SQLite.
+
+        Retrying the exact locally committed action returns its existing
+        CommitResult with current integrity and justification information.
+        A fresh denied action raises ProvenanceError before effect creation.
+        """
         from .gate import commit_effect
         return commit_effect(self, action_id, verification_ids, authority_id)

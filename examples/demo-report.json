@@ -1,0 +1,254 @@
+{
+  "action_status_after": "STALE",
+  "action_status_before": "VALID",
+  "denial_code": "STALE",
+  "effect_count": 1,
+  "effect_id": "sha256:164913dc4f42002653bbb82ee701d12ee77dd79875e8633d3762c541b1b8bd28",
+  "fixture_note": "Verification results are handwritten inputs; no repo tests were run.",
+  "historical_justification_status": "STALE",
+  "mode": "simulation",
+  "node_ids": {
+    "action": "sha256:66ad3f68fd701164cf4e17d97f4667ca6f72d85fcc70d424fe123082a54d071c",
+    "authority": "sha256:4fc351458742689f1201d80c323937c4b3fdaf2568ffd5599453e851ba9b8bdd",
+    "code_change": "sha256:88e9ab5d23bda22cce857a40dc4fef12cb705fcbd2e66e2a123e01b8adc99fd2",
+    "denied_action": "sha256:fa80f2116ae712d62966cf6213195dd02155676e8e4809a839b98997e973984c",
+    "effect": "sha256:164913dc4f42002653bbb82ee701d12ee77dd79875e8633d3762c541b1b8bd28",
+    "failure": "sha256:391060d047bdf1df77e94faadd6cec93531e37f9448679772016ca186ed79241",
+    "full_suite": "sha256:97d48ccf8cd9bbf69021666ee5d68205567335315d4a8f6414fd169a1395c5f8",
+    "invalidation": "sha256:26aa61d33ef1259f94ecf49c1ff5f036336a18c81d12b51714b31ea344889eed",
+    "root_cause": "sha256:58f49e9b00062ddcd08d8c461fe4d43741e00f7d3afb4468035cabd8845e388f",
+    "targeted_tests": "sha256:eb45e69e27fea5bc1d524275a47d027553f5e078e326d03f507fd99a88e2b812"
+  },
+  "original_effect_still_exists": true,
+  "retry_effect_id": "sha256:164913dc4f42002653bbb82ee701d12ee77dd79875e8633d3762c541b1b8bd28",
+  "why": {
+    "controls": [
+      {
+        "body": {
+          "created_at": "2026-10-07T00:00:00.000000Z",
+          "kind": "Invalidation",
+          "parents": [
+            {
+              "id": "sha256:88e9ab5d23bda22cce857a40dc4fef12cb705fcbd2e66e2a123e01b8adc99fd2",
+              "role": "target"
+            }
+          ],
+          "payload": {
+            "reason": "code-change observation came from a faulty collector"
+          },
+          "producer": "fixture:control",
+          "schema_version": "0.1"
+        },
+        "id": "sha256:26aa61d33ef1259f94ecf49c1ff5f036336a18c81d12b51714b31ea344889eed"
+      }
+    ],
+    "effect_id": "sha256:164913dc4f42002653bbb82ee701d12ee77dd79875e8633d3762c541b1b8bd28",
+    "nodes": [
+      {
+        "body": {
+          "created_at": "2026-10-07T00:00:00.000000Z",
+          "kind": "Observation",
+          "parents": [],
+          "payload": {
+            "fixture": true,
+            "message": "auth_refresh_test failed"
+          },
+          "producer": "fixture:runner",
+          "schema_version": "0.1"
+        },
+        "id": "sha256:391060d047bdf1df77e94faadd6cec93531e37f9448679772016ca186ed79241"
+      },
+      {
+        "body": {
+          "created_at": "2026-10-07T00:00:00.000000Z",
+          "kind": "Observation",
+          "parents": [],
+          "payload": {
+            "fixture": true,
+            "message": "code changed in abc123"
+          },
+          "producer": "fixture:runner",
+          "schema_version": "0.1"
+        },
+        "id": "sha256:88e9ab5d23bda22cce857a40dc4fef12cb705fcbd2e66e2a123e01b8adc99fd2"
+      },
+      {
+        "body": {
+          "created_at": "2026-10-07T00:00:00.000000Z",
+          "kind": "Claim",
+          "parents": [
+            {
+              "id": "sha256:391060d047bdf1df77e94faadd6cec93531e37f9448679772016ca186ed79241",
+              "role": "evidence"
+            },
+            {
+              "id": "sha256:88e9ab5d23bda22cce857a40dc4fef12cb705fcbd2e66e2a123e01b8adc99fd2",
+              "role": "evidence"
+            }
+          ],
+          "payload": {
+            "statement": "abc123 introduced the regression"
+          },
+          "producer": "fixture:reasoner",
+          "schema_version": "0.1"
+        },
+        "id": "sha256:58f49e9b00062ddcd08d8c461fe4d43741e00f7d3afb4468035cabd8845e388f"
+      },
+      {
+        "body": {
+          "created_at": "2026-10-07T00:00:00.000000Z",
+          "kind": "ProposedAction",
+          "parents": [
+            {
+              "id": "sha256:58f49e9b00062ddcd08d8c461fe4d43741e00f7d3afb4468035cabd8845e388f",
+              "role": "justification"
+            }
+          ],
+          "payload": {
+            "action_type": "repo.repair.simulated",
+            "arguments": {
+              "patch": "replace expired auth state"
+            },
+            "resource": "fixture:repo"
+          },
+          "producer": "fixture:reasoner",
+          "schema_version": "0.1"
+        },
+        "id": "sha256:66ad3f68fd701164cf4e17d97f4667ca6f72d85fcc70d424fe123082a54d071c"
+      },
+      {
+        "body": {
+          "created_at": "2026-10-07T00:00:00.000000Z",
+          "kind": "Authority",
+          "parents": [
+            {
+              "id": "sha256:66ad3f68fd701164cf4e17d97f4667ca6f72d85fcc70d424fe123082a54d071c",
+              "role": "subject"
+            }
+          ],
+          "payload": {
+            "action_id": "sha256:66ad3f68fd701164cf4e17d97f4667ca6f72d85fcc70d424fe123082a54d071c",
+            "action_type": "repo.repair.simulated",
+            "allowed": true,
+            "expires_at": "2026-10-07T01:00:00.000000Z",
+            "issuer_id": "fixture:authority",
+            "resource": "fixture:repo",
+            "subject": "fixture:runtime"
+          },
+          "producer": "fixture:authority",
+          "schema_version": "0.1"
+        },
+        "id": "sha256:4fc351458742689f1201d80c323937c4b3fdaf2568ffd5599453e851ba9b8bdd"
+      },
+      {
+        "body": {
+          "created_at": "2026-10-07T00:00:00.000000Z",
+          "kind": "Verification",
+          "parents": [
+            {
+              "id": "sha256:66ad3f68fd701164cf4e17d97f4667ca6f72d85fcc70d424fe123082a54d071c",
+              "role": "subject"
+            }
+          ],
+          "payload": {
+            "check": "full_suite",
+            "passed": true,
+            "verifier_id": "fixture:tester"
+          },
+          "producer": "fixture:tester",
+          "schema_version": "0.1"
+        },
+        "id": "sha256:97d48ccf8cd9bbf69021666ee5d68205567335315d4a8f6414fd169a1395c5f8"
+      },
+      {
+        "body": {
+          "created_at": "2026-10-07T00:00:00.000000Z",
+          "kind": "Verification",
+          "parents": [
+            {
+              "id": "sha256:66ad3f68fd701164cf4e17d97f4667ca6f72d85fcc70d424fe123082a54d071c",
+              "role": "subject"
+            }
+          ],
+          "payload": {
+            "check": "targeted_tests",
+            "passed": true,
+            "verifier_id": "fixture:tester"
+          },
+          "producer": "fixture:tester",
+          "schema_version": "0.1"
+        },
+        "id": "sha256:eb45e69e27fea5bc1d524275a47d027553f5e078e326d03f507fd99a88e2b812"
+      },
+      {
+        "body": {
+          "created_at": "2026-10-07T00:00:00.000000Z",
+          "kind": "Effect",
+          "parents": [
+            {
+              "id": "sha256:66ad3f68fd701164cf4e17d97f4667ca6f72d85fcc70d424fe123082a54d071c",
+              "role": "action"
+            },
+            {
+              "id": "sha256:4fc351458742689f1201d80c323937c4b3fdaf2568ffd5599453e851ba9b8bdd",
+              "role": "authority"
+            },
+            {
+              "id": "sha256:97d48ccf8cd9bbf69021666ee5d68205567335315d4a8f6414fd169a1395c5f8",
+              "role": "verification"
+            },
+            {
+              "id": "sha256:eb45e69e27fea5bc1d524275a47d027553f5e078e326d03f507fd99a88e2b812",
+              "role": "verification"
+            }
+          ],
+          "payload": {
+            "policy": {
+              "controllers": [
+                "fixture:control"
+              ],
+              "issuers": [
+                "fixture:authority"
+              ],
+              "observers": [
+                "fixture:runner"
+              ],
+              "requirements": {
+                "repo.repair.simulated": [
+                  "targeted_tests",
+                  "full_suite"
+                ]
+              },
+              "subject": "fixture:runtime",
+              "verifiers": {
+                "fixture:tester": [
+                  "targeted_tests",
+                  "full_suite"
+                ]
+              },
+              "version": "demo-v1"
+            },
+            "policy_hash": "sha256:ced1aa3d49a12ed8098dea83d9679ae0f8a6bd427e2406d10089dc4328958674",
+            "receipt": {
+              "action_id": "sha256:66ad3f68fd701164cf4e17d97f4667ca6f72d85fcc70d424fe123082a54d071c",
+              "kind": "simulated-repo-repair"
+            }
+          },
+          "producer": "fixture:runtime",
+          "schema_version": "0.1"
+        },
+        "id": "sha256:164913dc4f42002653bbb82ee701d12ee77dd79875e8633d3762c541b1b8bd28"
+      }
+    ],
+    "statuses": {
+      "sha256:164913dc4f42002653bbb82ee701d12ee77dd79875e8633d3762c541b1b8bd28": "STALE",
+      "sha256:391060d047bdf1df77e94faadd6cec93531e37f9448679772016ca186ed79241": "VALID",
+      "sha256:4fc351458742689f1201d80c323937c4b3fdaf2568ffd5599453e851ba9b8bdd": "STALE",
+      "sha256:58f49e9b00062ddcd08d8c461fe4d43741e00f7d3afb4468035cabd8845e388f": "STALE",
+      "sha256:66ad3f68fd701164cf4e17d97f4667ca6f72d85fcc70d424fe123082a54d071c": "STALE",
+      "sha256:88e9ab5d23bda22cce857a40dc4fef12cb705fcbd2e66e2a123e01b8adc99fd2": "INVALID",
+      "sha256:97d48ccf8cd9bbf69021666ee5d68205567335315d4a8f6414fd169a1395c5f8": "STALE",
+      "sha256:eb45e69e27fea5bc1d524275a47d027553f5e078e326d03f507fd99a88e2b812": "STALE"
+    }
+  }
+}

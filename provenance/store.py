@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .errors import ProvenanceError, fail
 from .model import Node
-from .rules import is_causal
+from .rules import is_causal, check_record
 from .validation import validate_graph, ValidationReport
 
 
@@ -105,6 +105,9 @@ class Store:
             return validate_graph(node_id, self.get, self._indexed_parents)
 
     def put(self, node: Node) -> str:
+        errors = check_record(node)
+        if errors:
+            raise ProvenanceError(errors[0])
         if node.kind not in {"Claim", "ProposedAction"}:
             fail("UNTRUSTED", "trusted record kind requires a dedicated runtime API", node.id)
         with self.write_transaction():

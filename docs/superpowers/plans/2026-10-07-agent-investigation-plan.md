@@ -229,6 +229,8 @@ These definitions belong to the task that produces them. Later tasks reuse the n
 
 ## Plan self-review and handoff
 
+October 7 provider amendment: the user selected OpenAI Responses API to complete the live proof after the Codex CLI restriction failed. Task 7's two live commands use `--agent openai`; existing capture/contract/Docker/coordinator/gate requirements remain unchanged. The API adapter exposes no tools, requests the existing strict schema with `store: false`, uses a locally configured environment key, makes no automatic retries, and applies the existing hard time/output bounds plus a 4,096 output-token limit. The completed CLI adapter keeps its fail-closed restriction. API adapter and CLI/report changes were verified test-first, followed by the full suite, actual container suite, both live cases, ancestry/retry inspection, and an independent review focused on the amendment.
+
 Every approved design section maps to a task: fixture/capture (1), data contract/patch constraints (2), independent verification/resource bounds (3), provider interface/restrictions (4), collaboration/status/gate (5), CLI/artifacts/docs (6), actual integration evidence (7). Review Focus conditions each have an owning regression. Shared interfaces are defined above and consumed without changing names.
 
 The preserved execution method is Native: implement task-by-task here, then one independent final reviewer. The human reviews this written plan before implementation, as required by the planning workflow.

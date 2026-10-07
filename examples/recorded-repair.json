@@ -1,0 +1,8 @@
+[
+  {
+    "claim_statement": "The current implementation no longer enforces the upper bound.",
+    "evidence_aliases": ["source", "change", "baseline_failure"],
+    "patch_content": "def clamp(value: int, lower: int, upper: int) -> int:\n    return max(lower, min(value, upper))\n",
+    "summary": "Restore both bounds for the trusted test cases."
+  }
+]

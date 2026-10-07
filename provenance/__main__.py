@@ -14,7 +14,23 @@ def main(argv=None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     demo = commands.add_parser("demo", help="prove the gate and stale-justification behavior")
     demo.add_argument("--db", required=True, help="fresh SQLite path, or :memory:")
+    investigation = commands.add_parser('investigate', help='run a bounded agent investigation of the bundled clamp fixture')
+    investigation.add_argument('--agent', required=True, choices=('codex', 'recorded'))
+    investigation.add_argument('--case-dir', required=True, help='new private case directory; existing paths are preserved')
+    investigation.add_argument('--scenario', choices=('normal', 'stale-source'), default='normal')
+    investigation.add_argument('--hint', help='human report supplied after the first reasoning round')
+    investigation.add_argument('--model', help='optional Codex CLI model selection')
+    investigation.add_argument('--responses', help='recorded mode: JSON array of one to three response objects')
+    investigation.add_argument('--max-rounds', type=int, choices=(1, 2, 3), default=3)
+    investigation.add_argument('--json', action='store_true', help='machine-readable output; default is readable Markdown')
     args = parser.parse_args(argv)
+    if args.command == 'investigate':
+        if args.agent == 'recorded' and (not args.responses or args.model):
+            parser.error('recorded mode requires --responses and does not accept --model')
+        if args.agent == 'codex' and args.responses:
+            parser.error('Codex mode does not accept --responses')
+        from .clients.repo_repair.report import run_cli
+        return run_cli(args)
     try:
         with Store(args.db) as store:
             report = run_demo(store)

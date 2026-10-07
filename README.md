@@ -19,6 +19,17 @@ Repo repair is the demonstration scenario for the general runtime. A future repo
 
 The record model is provider-neutral. The current gate implements one action type, `repo.repair.simulated`; other real effects need their own execution and recovery integration.
 
+## Agent investigation client (experimental)
+
+The separate [agent investigation client](docs/agent-investigation.md) captures real Git evidence, accepts a structured Codex proposal and a later human hint, and independently tests an exact candidate in restricted Linux containers. It uses the same runtime primitives and simulated receipt gate. The original `demo` below remains a deterministic demonstration with handwritten inputs.
+
+```sh
+python -m provenance investigate --agent codex --case-dir ./work/live-normal
+python -m provenance investigate --agent recorded --responses ./examples/recorded-repair.json --case-dir ./work/replay
+```
+
+Both commands require a running Linux Docker engine. Live mode also requires a logged-in Codex CLI whose tool restrictions pass preflight. Unit checks pass, but actual container/live acceptance is still pending on this machine because of Docker startup errors and a Codex restriction preflight failure. See the [observed verification evidence](docs/agent-investigation.md#verification-evidence-on-october-7-2026).
+
 The three questions to keep separate are:
 
 | Question | Mechanism |

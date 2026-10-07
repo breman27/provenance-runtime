@@ -74,6 +74,17 @@ def _baseline_unchanged(case, baseline):
         fail('BASELINE_CHANGED', 'verify', 'the captured baseline or current fixture files changed')
 
 
+def unified_patch(before, after):
+    """Create a Git-compatible display patch without changing candidate bytes."""
+    def lines(text):
+        parts = text.split('\n')
+        return [part + '\n' for part in parts[:-1]] + ([parts[-1]] if parts[-1] else [])
+    result = []
+    for line in difflib.unified_diff(lines(before), lines(after), fromfile='a/' + TARGET, tofile='b/' + TARGET):
+        result.append(line if line.endswith('\n') else line + '\n\\ No newline at end of file\n')
+    return ''.join(result)
+
+
 def run_investigation(options, agent, verifier):
     report = InvestigationReport('UNRESOLVED', agent.backend, agent.live, str(Path(options.case_dir).absolute()), options.scenario)
     case, store = None, None
@@ -157,8 +168,7 @@ def run_investigation(options, agent, verifier):
                                 proposal_status=store.get(claim_id).payload['proposal_status']))
             if action_id:
                 candidate_text = store.get(action_id).payload['arguments']['patch_content']
-                diff = ''.join(difflib.unified_diff(baseline.files[TARGET].decode().splitlines(True), candidate_text.splitlines(True),
-                                                   fromfile='a/' + TARGET, tofile='b/' + TARGET))
+                diff = unified_patch(baseline.files[TARGET].decode(), candidate_text)
                 patch_path = f'artifacts/round-{index}.patch'
                 safe_path(case.root, patch_path).write_text(diff, encoding='utf-8', newline='\n')
                 row['diff'], row['patch_artifact'] = diff, patch_path

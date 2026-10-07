@@ -8,13 +8,17 @@ from .coordinator import InvestigationOptions, InvestigationReport, run_investig
 from .errors import InvestigationError
 from .verifier import DockerVerifier
 from .case import safe_path
+from .openai_agent import OpenAIAgent
 
 
 def _short(node_id): return node_id[:19] + '…' if node_id else 'none'
 
 
 def render_report(report):
-    mode = 'Live Codex reasoning' if report.live_agent else 'Recorded reasoning (replay; no live model call)'
+    provider = {'codex': 'Codex', 'openai': 'OpenAI API'}.get(report.backend, report.backend)
+    mode = f'Live {provider} reasoning' if report.live_agent else 'Recorded reasoning (replay; no live model call)'
+    if report.live_agent and not report.rounds and report.error and report.error['stage'] in ('preflight', 'options', 'baseline'):
+        mode = f'{provider} mode (no completed model response)'
     lines = [f'# Investigation: {report.outcome}', '', mode, '', f'Case: {report.case_dir}',
              f'Scenario: {report.scenario}', '', 'Sources captured:']
     for source in report.sources:
@@ -50,9 +54,11 @@ def render_report(report):
 
 
 def run_cli(args):
-    print('Checking prerequisites; live mode consumes normal Codex account usage when invoked.', file=sys.stderr)
+    usage = 'OpenAI API usage' if args.agent == 'openai' else 'Codex account usage' if args.agent == 'codex' else 'no model usage in replay mode'
+    print('Checking prerequisites; ' + usage + '.', file=sys.stderr)
     try:
         if args.agent == 'codex': agent = CodexAgent(model=args.model)
+        elif args.agent == 'openai': agent = OpenAIAgent(model=args.model)
         else:
             with Path(args.responses).open('rb') as stream: raw = stream.read(3145729)
             if len(raw) > 3145728: raise InvestigationError('RESPONSES_LIMIT', 'options', 'response file exceeds 3 MiB')
@@ -63,7 +69,7 @@ def run_cli(args):
         report = run_investigation(InvestigationOptions(Path(args.case_dir), args.scenario, args.hint, args.max_rounds), agent, DockerVerifier())
     except (InvestigationError, ProvenanceError, OSError) as error:
         code = error.code if isinstance(error, InvestigationError) else error.problem.code if isinstance(error, ProvenanceError) else 'IO_ERROR'
-        report = InvestigationReport('ERROR', args.agent, args.agent == 'codex', str(Path(args.case_dir).absolute()), args.scenario,
+        report = InvestigationReport('ERROR', args.agent, args.agent != 'recorded', str(Path(args.case_dir).absolute()), args.scenario,
                                      error={'code': code, 'stage': 'options', 'detail': str(error)[:2000]}, reason=str(error)[:2000])
     text = render_report(report)
     # Only a case actually created by this invocation can receive output files.
@@ -78,6 +84,8 @@ def run_cli(args):
                 safe_path(Path(report.case_dir), 'report.json').write_bytes(canonical_json(report.as_dict()))
                 safe_path(Path(report.case_dir), 'error.json').write_bytes(canonical_json(report.error))
             except (InvestigationError, OSError): pass
-    print(canonical_json(report.as_dict()).decode('utf-8') if args.json else text, end='\n' if args.json else '')
+    output = canonical_json(report.as_dict()) + b'\n' if args.json else text.encode('utf-8')
+    if hasattr(sys.stdout, 'buffer'): sys.stdout.buffer.write(output)
+    else: sys.stdout.write(output.decode('utf-8'))
     if report.error and report.error['stage'] == 'options': return 2
     return {'ACCEPTED': 0, 'REFUSED': 3, 'UNRESOLVED': 4, 'ERROR': 1}[report.outcome]

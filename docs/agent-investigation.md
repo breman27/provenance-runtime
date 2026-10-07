@@ -8,16 +8,20 @@ The core library remains the system of record. This client supplies the collecto
 
 Use Python 3.12+, Git, a running Linux Docker engine, and the Docker CLI. The host resolves `python:3.12-slim` to an image ID at preflight and uses that ID throughout the case. Obtaining the image can require network access; candidate containers have no network.
 
-Live mode also requires a logged-in Codex CLI supporting the restriction flags checked by `CodexAgent.preflight()`. The application invokes `codex login status`; it does not read or copy authentication files. It ignores optional user configuration during inference and disables shell execution, apps, plugins, hooks, browsing, computer use, and subagents. An unsupported or ineffective restriction fails preflight.
+The recommended live backend is now the **OpenAI Responses API**, selected by the user after the CLI restriction issue. Configure `OPENAI_API_KEY` locally as described in the [official quickstart](https://developers.openai.com/api/docs/quickstart). On Windows, the adapter also reads this variable from your user environment, so a newly configured key works without restarting Codex. The key needs access to the selected model (`GET /v1/models/<model>`) and response creation (`POST /v1/responses`). It is never included in packets, process arguments, or saved artifacts. API requests use your API project's billing; they do not reuse the Codex login.
+
+The API receives a strict JSON schema and an empty tool list with `tool_choice: none`. No model-accessible execution tool exists in this connection. Requests set `store: false`, run in the foreground, make no automatic retries, and cap output at 4,096 tokens. The same host process deadline and 1 MiB response limit apply. A standalone standard-library HTTPS worker gives a hard deadline without requiring an SDK dependency. It connects only to the official endpoint with TLS verification. Refusals, incomplete output, unexpected tools, malformed responses, authentication and quota errors stop admission.
+
+The optional `codex` backend requires a logged-in Codex CLI supporting the restriction flags checked by `CodexAgent.preflight()`. It remains fail-closed on this machine. The application invokes `codex login status`; it does not read or copy authentication files. It ignores optional user configuration during inference and disables shell execution, apps, plugins, hooks, browsing, computer use, and subagents. An unsupported or ineffective restriction fails preflight.
 
 ```sh
-python -m provenance investigate --agent codex --case-dir ./work/live-normal
-python -m provenance investigate --agent codex --scenario stale-source --case-dir ./work/live-correction --hint "Check whether the source snapshot is from the current revision."
+python -m provenance investigate --agent openai --case-dir ./work/live-normal
+python -m provenance investigate --agent openai --scenario stale-source --case-dir ./work/live-correction --hint "Check whether the source snapshot is from the current revision."
 ```
 
-Each `--case-dir` must be new. Existing paths are preserved. Add `--json` for a machine-readable report or `--model MODEL` to select the Codex model explicitly. Without `--model`, the CLI chooses its default. Reports record the requested model and any available provider metadata rather than guessing the model used.
+Each `--case-dir` must be new. Existing paths are preserved. Add `--json` for a machine-readable UTF-8 report or `--model MODEL` to choose a model explicitly. OpenAI defaults to `gpt-4.1-mini`; the Codex backend uses its CLI default. Reports record requested and returned model IDs when available, plus selected request IDs and token counts. [GPT-4.1 mini supports structured output](https://developers.openai.com/api/docs/models/gpt-4.1-mini).
 
-Live mode consumes normal account model usage. There are at most three agent invocations, each bounded to 180 seconds, and each test container is bounded to 30 seconds. `--max-rounds` can reduce the round budget. A human hint requires at least two rounds. These bounds limit invocations and time, not exact token cost. Ordinary unit tests do not invoke a live model or Docker.
+Live mode consumes model usage through the selected provider. There are at most three agent invocations, each bounded to 180 seconds, and each test container is bounded to 30 seconds. `--max-rounds` can reduce the round budget. A human hint requires at least two rounds. These bounds limit invocations and time, not exact token cost. Ordinary unit tests do not invoke a live model or Docker.
 
 ## What happens
 
@@ -95,6 +99,8 @@ All 121 ordinary tests and five explicit Docker acceptance tests passed after in
 
 Docker Desktop 4.73.0 initially errored on inaccessible Windows AF_UNIX sockets. Two runtime socket folders were preserved as backups during diagnosis; images, containers, and volumes were not reset. Startup retries stopped after the user reported the error. The engine subsequently responded to the read-only preflight and executed the acceptance tests successfully.
 
-Live acceptance remains pending. The installed Codex CLI (`0.162.0-alpha.2`) reports `unified_exec` enabled despite explicit disable settings, so the adapter rejects preflight. A normal live-mode command returned `AGENT_UNAVAILABLE` before case creation or inference. The current [Codex implementation](https://github.com/openai/codex/blob/main/codex-rs/core/src/config/managed_features.rs) forces that backend on unless a managed requirement disables it. The application does not alter global managed requirements or weaken its approved restriction. No live model response or live acceptance receipt is claimed.
+The OpenAI API route passed both actual live cases using `gpt-4.1-mini-2025-04-14`: a normal repair and a two-round correction. In the correction, the first model actually selected the old source; its passing candidate was refused with `STALE`. The later model consumed the supplied human hint and fresh evidence, and its independently tested proposal earned one receipt. This used three actual model calls in total. The saved graphs were reopened for ancestry validation.
 
-Run actual container acceptance separately with `python -m unittest discover -s integration_tests -v`. Missing prerequisites are failures, never skipped successes. Run the two live commands above only after both preflights pass, and inspect their saved reports/receipt ancestry before claiming the integration milestone complete.
+The optional Codex CLI (`0.162.0-alpha.2`) still reports `unified_exec` enabled despite explicit disables. Its preflight remains unavailable; no global managed requirements were changed. This does not block the user-selected API route.
+
+Run actual container acceptance separately with `python -m unittest discover -s integration_tests -v`. Missing prerequisites are failures, never skipped successes. Live calls remain separate from ordinary tests and consume API usage. Inspect their saved reports/receipt ancestry; the original core receipt semantics remain unchanged.

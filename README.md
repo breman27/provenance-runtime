@@ -21,14 +21,14 @@ The record model is provider-neutral. The current gate implements one action typ
 
 ## Agent investigation client (experimental)
 
-The separate [agent investigation client](docs/agent-investigation.md) captures real Git evidence, accepts a structured Codex proposal and a later human hint, and independently tests an exact candidate in restricted Linux containers. It uses the same runtime primitives and simulated receipt gate. The original `demo` below remains a deterministic demonstration with handwritten inputs.
+The separate [agent investigation client](docs/agent-investigation.md) captures real Git evidence, obtains a structured model proposal and a later human hint, and independently tests an exact candidate in restricted Linux containers. It uses the same runtime primitives and simulated receipt gate. The original `demo` below remains a deterministic demonstration with handwritten inputs.
 
 ```sh
-python -m provenance investigate --agent codex --case-dir ./work/live-normal
+python -m provenance investigate --agent openai --case-dir ./work/live-normal
 python -m provenance investigate --agent recorded --responses ./examples/recorded-repair.json --case-dir ./work/replay
 ```
 
-Both commands require a running Linux Docker engine. Live mode also requires a logged-in Codex CLI whose tool restrictions pass preflight. All 121 ordinary checks and five real Docker acceptance checks pass. Live acceptance remains pending because the installed Codex CLI fails a restriction preflight. See the [observed verification evidence](docs/agent-investigation.md#verification-evidence-on-october-7-2026).
+Both commands require a running Linux Docker engine. OpenAI live mode uses a locally configured `OPENAI_API_KEY` and defaults to GPT-4.1 mini with no exposed tools. Both actual live scenarios passed: normal repair and human correction with stale-proposal refusal. The optional Codex CLI backend keeps its strict preflight and remains unavailable on this machine. See the [observed verification evidence](docs/agent-investigation.md#verification-evidence-on-october-7-2026).
 
 The three questions to keep separate are:
 

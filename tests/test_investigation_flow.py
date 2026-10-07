@@ -1,5 +1,6 @@
 import json
 import tempfile
+import subprocess
 import unittest
 from pathlib import Path
 from provenance import Store
@@ -70,6 +71,13 @@ class FlowTests(unittest.TestCase):
         self.assertEqual(report.error['stage'], 'preflight')
         self.assertFalse(self.case_dir.exists())
         self.assertFalse(agent.requests)
+
+    def test_patch_artifact_preserves_candidate_without_final_newline(self):
+        report, _ = self.run_case([decision_dict(CORRECT_PATCH.rstrip('\n'))], max_rounds=1)
+        patch_file = self.case_dir / report.rounds[0]['patch_artifact']
+        check = subprocess.run(('git', '-C', str(self.case_dir / 'repository'), 'apply', '--check', str(patch_file)), capture_output=True)
+        self.assertEqual(check.returncode, 0, check.stderr.decode(errors='replace'))
+        self.assertIn('\\ No newline at end of file', patch_file.read_text(encoding='utf-8'))
 
     def test_stale_source_refuses_old_action_and_accepts_fresh_evidence(self):
         report, agent = self.run_case([decision_dict(), decision_dict(evidence=('source_current', 'human_hint'))],

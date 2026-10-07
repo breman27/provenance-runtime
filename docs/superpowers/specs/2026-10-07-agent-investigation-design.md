@@ -2,6 +2,8 @@
 
 Approved — October 7, 2026
 
+Provider amendment approved by the user October 7, 2026: use the **OpenAI Responses API** for the live proof instead of requiring the Codex CLI route. The existing AgentBackend contract, evidence collection, patch profile, Docker verifier, human ordering, budgets and gate remain binding. Requests expose no tools, use strict structured output with `store: false`, and retain only validated decisions and selected metadata. Authentication uses a locally configured `OPENAI_API_KEY`; API billing replaces CLI account usage for this backend. The original Codex restriction remains intact for callers selecting `codex`. Live acceptance under Task 7 now uses `--agent openai` for both cases. The historical CLI design below records the initial choice.
+
 ## Purpose and success
 
 Replace the original demo's handwritten reasoning and verification with one actual agent integration and real tool results. A human can contribute a hint after the initial analysis. The runtime must preserve the resulting evidence and claims and admit a local receipt only for a verified, authorized proposal with usable justification.

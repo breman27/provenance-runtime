@@ -1,6 +1,6 @@
 # First real agent investigation
 
-Draft for review — October 7, 2026
+Approved — October 7, 2026
 
 ## Purpose and success
 

@@ -12,6 +12,7 @@ from .case import (Evidence, TARGET, TEST_PATH, prepare_case, capture_snapshot, 
 from .contract import AgentRequest, admit_decision, validate_patch
 from .errors import InvestigationError, fail
 from .verifier import record_test
+from ..reporting import report_record_snapshot
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,8 @@ class InvestigationReport:
     error: dict | None = None
     reason: str = ''
     trace: dict | None = None
+    record_snapshot: dict | None = None
+    record_snapshot_error: dict | None = None
 
     def as_dict(self): return asdict(self)
 
@@ -228,7 +231,13 @@ def run_investigation(options, agent, verifier):
             try: safe_path(case.root, 'error.json').write_bytes(canonical_json(detail))
             except (InvestigationError, OSError): pass
     finally:
-        if store: store.close()
+        if store:
+            try:
+                report.record_snapshot = report_record_snapshot(store, report.as_dict())
+            except (ProvenanceError, sqlite3.Error):
+                report.record_snapshot_error = {'code': 'RECORD_SNAPSHOT', 'detail': 'Could not validate the report records'}
+            finally:
+                store.close()
         if case:
             try: safe_path(case.root, 'report.json').write_bytes(canonical_json(report.as_dict()))
             except (InvestigationError, OSError) as error:

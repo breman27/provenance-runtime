@@ -1,0 +1,28 @@
+[
+  {
+    "tool": "read_logs",
+    "arguments": {}
+  },
+  {
+    "tool": "read_source",
+    "arguments": {}
+  },
+  {
+    "tool": "run_tests",
+    "arguments": {}
+  },
+  {
+    "tool": "finish",
+    "arguments": {
+      "assessment": "healthy",
+      "claim_statement": "The recorded outputs meet the sensor-service contract.",
+      "evidence_aliases": [
+        "logs_current",
+        "source_current",
+        "current_full_suite"
+      ],
+      "patch_content": null,
+      "summary": "No repair is justified by these observations."
+    }
+  }
+]

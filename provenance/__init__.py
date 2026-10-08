@@ -6,7 +6,8 @@ from .runtime import Policy, Runtime
 from .gate import CommitResult
 from .projection import Trace, status, why, impacted_by, evidence_for
 from .transfer import export_graph, import_graph
+from .reporting import snapshot_records, render_record_report
 
 __all__ = ["Problem", "ProvenanceError", "Node", "Parent", "make_node", "Admission", "Store",
            "Policy", "Runtime", "CommitResult", "Trace", "status", "why", "impacted_by", "evidence_for",
-           "export_graph", "import_graph"]
+           "export_graph", "import_graph", "snapshot_records", "render_record_report"]

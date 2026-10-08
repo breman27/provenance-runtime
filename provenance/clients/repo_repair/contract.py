@@ -136,7 +136,9 @@ def validate_patch(content: str) -> bytes:
     return data
 
 
-def admit_decision(runtime, case, baseline, request, run):
+def admit_decision(runtime, case, baseline, request, run, *, input_bytes=None):
+    if input_bytes is not None and (type(input_bytes) is not bytes or len(input_bytes) > 131072):
+        fail('INPUT_LIMIT', 'proposal', 'Saved agent input must be bounded bytes')
     decision = decode_decision(canonical_json(run.decision.as_dict()), request.evidence)
     offered = {e.alias: e for e in request.evidence}
     parents = []
@@ -153,7 +155,8 @@ def admit_decision(runtime, case, baseline, request, run):
     proposal_status = "no_proposal" if patch is None else "unchanged" if patch == baseline.files[TARGET] else "proposed"
     payload = {"statement": decision.claim_statement, "summary": decision.summary, "proposal_status": proposal_status,
                "backend": run.backend, "live_agent": run.live, "provider_metadata": run.metadata,
-               "round_index": request.round_index, "input_hash": digest(canonical_json(request.packet()))}
+               "round_index": request.round_index,
+               "input_hash": digest(canonical_json(request.packet()) if input_bytes is None else input_bytes)}
     claim = make_node("Claim", payload, parents, "agent:" + run.backend, runtime.clock())
     claim_id = runtime.submit(claim)
     if proposal_status != "proposed":

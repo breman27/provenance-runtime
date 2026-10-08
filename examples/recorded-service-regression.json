@@ -1,0 +1,33 @@
+[
+  {
+    "tool": "read_logs",
+    "arguments": {}
+  },
+  {
+    "tool": "read_source",
+    "arguments": {}
+  },
+  {
+    "tool": "read_diff",
+    "arguments": {}
+  },
+  {
+    "tool": "run_tests",
+    "arguments": {}
+  },
+  {
+    "tool": "finish",
+    "arguments": {
+      "assessment": "regression",
+      "claim_statement": "The latest deployment lets readings above 100 escape the dashboard range.",
+      "evidence_aliases": [
+        "logs_current",
+        "source_current",
+        "deployment_diff",
+        "current_targeted_tests"
+      ],
+      "patch_content": "def clamp(value: int, lower: int, upper: int) -> int:\n    return max(lower, min(value, upper))\n",
+      "summary": "Restore upper and lower bounds."
+    }
+  }
+]

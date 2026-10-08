@@ -45,7 +45,7 @@ def invoke(request):
     if type(model) is not str or not re.fullmatch(MODEL_PATTERN, model):
         raise ApiFailure('API_MODEL', 'Model must be a nonempty model ID of at most 128 characters')
     mode = request.get('mode')
-    if mode not in ('preflight', 'propose'): raise ApiFailure('API_PROTOCOL', 'Unknown API worker operation')
+    if mode not in ('preflight', 'propose', 'tool_step'): raise ApiFailure('API_PROTOCOL', 'Unknown API worker operation')
     body = None
     method, path = 'GET', '/v1/models/' + quote(model, safe='')
     if mode == 'propose':
@@ -54,6 +54,13 @@ def invoke(request):
                    'store': False, 'stream': False, 'background': False, 'truncation': 'disabled',
                    'max_output_tokens': 4096,
                    'text': {'format': {'type': 'json_schema', 'name': 'repair_decision', 'strict': True, 'schema': request['schema']}}}
+        body = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+        method, path = 'POST', '/v1/responses'
+    elif mode == 'tool_step':
+        payload = {'model': model, 'instructions': request['instructions'], 'input': request['input'],
+                   'tools': request['tools'], 'tool_choice': 'required', 'parallel_tool_calls': False,
+                   'store': False, 'stream': False, 'background': False, 'truncation': 'disabled',
+                   'max_output_tokens': 4096}
         body = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
         method, path = 'POST', '/v1/responses'
     # Fixed official endpoint, standard TLS verification, no redirects/custom base URLs.
@@ -79,11 +86,21 @@ def invoke(request):
             raise ApiFailure('API_INCOMPLETE', 'OpenAI did not complete the structured response')
         output = data.get('output')
         if type(output) is not list: raise ApiFailure('API_PROTOCOL', 'OpenAI returned no output list')
-        texts = []
+        texts, calls = [], []
         for item in output:
             if type(item) is not dict: raise ApiFailure('API_PROTOCOL', 'OpenAI returned an invalid output item')
             kind = item.get('type')
-            if kind == 'reasoning': continue
+            if kind == 'reasoning':
+                if mode == 'tool_step':
+                    raise ApiFailure('API_MODEL', 'Reasoning-model tool continuations are unsupported; select gpt-4.1-mini')
+                continue
+            if mode == 'tool_step' and kind == 'function_call':
+                if (item.get('status') not in (None, 'completed') or not _identifier(item.get('call_id'))
+                        or item.get('name') not in {tool['name'] for tool in request['tools']}
+                        or type(item.get('arguments')) is not str):
+                    raise ApiFailure('API_PROTOCOL', 'Invalid bounded function call')
+                calls.append({k: item[k] for k in ('type', 'call_id', 'name', 'arguments')})
+                continue
             if kind != 'message': raise ApiFailure('API_TOOL_EVENT', 'Unexpected tool/output item from proposal-only API')
             if item.get('role') != 'assistant' or type(item.get('content')) is not list:
                 raise ApiFailure('API_PROTOCOL', 'OpenAI returned an invalid assistant message')
@@ -93,7 +110,9 @@ def invoke(request):
                 if content.get('type') != 'output_text' or type(content.get('text')) is not str:
                     raise ApiFailure('API_PROTOCOL', 'OpenAI returned non-text message content')
                 texts.append(content['text'])
-        if len(texts) != 1 or not texts[0].strip(): raise ApiFailure('API_PROTOCOL', 'Expected one final structured text response')
+        if mode == 'tool_step':
+            if len(calls) != 1 or texts: raise ApiFailure('API_PROTOCOL', 'Expected exactly one bounded function call')
+        elif len(texts) != 1 or not texts[0].strip(): raise ApiFailure('API_PROTOCOL', 'Expected one final structured text response')
         actual_model = _identifier(data.get('model'))
         if not actual_model: raise ApiFailure('API_PROTOCOL', 'Response omitted a usable model identifier')
         usage = data.get('usage')
@@ -102,7 +121,7 @@ def invoke(request):
         details = usage.get('input_tokens_details')
         cached = details.get('cached_tokens') if type(details) is dict else None
         if type(cached) is int and 0 <= cached <= 2**53-1: tokens['cached_input_tokens'] = cached
-        return {'status': 'ok', 'output_text': texts[0], 'metadata': {'model': actual_model,
+        return {'status': 'ok', **({'tool_call': calls[0]} if mode == 'tool_step' else {'output_text': texts[0]}), 'metadata': {'model': actual_model,
                 'response_id': _identifier(data.get('id')), 'request_id': _identifier(response.getheader('x-request-id')), 'tokens': tokens}}
     finally: connection.close()
 

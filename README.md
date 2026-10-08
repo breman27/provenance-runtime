@@ -20,6 +20,28 @@ Repo repair is the demonstration scenario for the general runtime. A future repo
 
 The record model is provider-neutral. The current gate implements one action type, `repo.repair.simulated`; other real effects need their own execution and recovery integration.
 
+Generated agent reports use the same [record-based report format](docs/reporting.md): Evidence/Observations, Claims, ProposedActions, Verifications, Authorities, Effects, and a separate Outcome. Records show IDs and parent links; the layout is reusable by other clients.
+
+## Live service watcher
+
+Keep a collector running while editing a real demo repo from the chat. It captures changing working-tree versions and real service logs into one provenance graph, and queues API investigations while collection continues. See the [live walkthrough](docs/live-service-watch.md).
+
+```sh
+python scripts/watch_observed_service.py
+```
+
+The helper prompts locally for a key. Leave the terminal open, then edit `/Users/brett/workspace/provenance-observed-service/src/clamp.py`. Code changes come from the chat; the watcher introduces none.
+
+## Observed service benchmark (experimental)
+
+The [observed sensor service](docs/observed-service.md) starts healthy, emits actual operational logs, then receives a code change. An API agent chooses bounded tools to inspect logs, current source, deployment diff, and tests, without a human hint. A healthy-only control checks for invented regressions.
+
+```sh
+python scripts/test_observed_service.py
+```
+
+This prompts locally for an API key if needed and runs both live scenarios. Docker is required. Fresh case repos, logs, Observation graphs, and reports stay under ignored `work/` paths. See the walkthrough for replay, limits, and how to assess actual model detection.
+
 ## Agent investigation client (experimental)
 
 The separate [agent investigation client](docs/agent-investigation.md) captures real Git evidence, obtains a structured model proposal and a later human hint, and independently tests an exact candidate in restricted Linux containers. It uses the same runtime primitives and simulated receipt gate. The original `demo` below remains a deterministic demonstration with handwritten inputs.

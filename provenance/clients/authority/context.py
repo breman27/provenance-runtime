@@ -172,7 +172,11 @@ def _relative(session, path):
     return value
 
 
-def _proofs(store, action_id, ids, candidate_hash, candidate_snapshot_hash):
+def _installed_runner_hash():
+    return digest(Path(__file__).parents[1].joinpath('repo_repair/runner.py').read_bytes())
+
+
+def _proofs(store, action_id, ids, candidate_hash, candidate_snapshot_hash, *, current_runner_hash=None):
     if type(ids) not in (tuple, list) or len(ids) != 2 or len(set(ids)) != 2:
         fail('VERIFICATION_FAILED', 'exactly the two required checks must be recorded', action_id)
     proofs, images = {}, set()
@@ -206,8 +210,9 @@ def _proofs(store, action_id, ids, candidate_hash, candidate_snapshot_hash):
                 or type(proof.get('stdout')) is not str or type(proof.get('stderr')) is not str
                 or proof.get('stdout_hash') != digest(proof['stdout'].encode('utf-8'))
                 or proof.get('stderr_hash') != digest(proof['stderr'].encode('utf-8'))
-                or proof.get('runner_hash') != digest(Path(__file__).parents[1].joinpath('repo_repair/runner.py').read_bytes())):
+                or (current_runner_hash is not None and proof.get('runner_hash') != current_runner_hash)):
             fail('VERIFICATION_FAILED', 'test evidence does not prove the exact candidate', node_id)
+        content_id(proof.get('runner_hash'))
         content_id(proof.get('image_id'))
         images.add(proof['image_id'])
         proofs[check] = proof
@@ -216,7 +221,7 @@ def _proofs(store, action_id, ids, candidate_hash, candidate_snapshot_hash):
     return proofs, images.pop()
 
 
-def _validate_binding(session, store, data):
+def _validate_binding(session, store, data, *, current_runner_hash=None):
     fields = {'session_id', 'case_id', 'client', 'action_id', 'case_dir', 'repository',
               'source_observation_id', 'baseline_revision', 'baseline_snapshot', 'candidate_snapshot',
               'target_path', 'original_file_hash', 'candidate_file_hash', 'verification_ids', 'image_id', 'artifacts'}
@@ -266,7 +271,7 @@ def _validate_binding(session, store, data):
             or baseline.file_hashes != source.payload['file_hashes'] or patch == baseline.files[TARGET]):
         fail('APPROVAL_CONTEXT', 'immutable baseline or candidate content differs')
     proofs, image = _proofs(store, data['action_id'], data['verification_ids'],
-                           data['candidate_file_hash'], data['candidate_snapshot'])
+                           data['candidate_file_hash'], data['candidate_snapshot'], current_runner_hash=current_runner_hash)
     if image != data['image_id']:
         fail('VERIFICATION_FAILED', 'recorded verifier image differs')
     expected_artifacts = {}
@@ -309,7 +314,10 @@ def load_context(session, store, action_id, *, artifacts=True) -> ProposalContex
     content_id(action_id)
     with store.read_snapshot():
         ctx = _recorded_context(session, store, action_id)
-        _validate_binding(session, store, ctx.data)
+    # Immutable recorded ownership remains inspectable across application updates.
+    # Filesystem/current-code checks happen after the short graph snapshot.
+    _validate_binding(session, store, ctx.data,
+                      current_runner_hash=_installed_runner_hash() if artifacts else None)
     if artifacts:
         path = safe_path(session.root, 'approvals/'+action_id.split(':')[1]+'.json')
         wrapper = read_object(path, 131072)
@@ -329,7 +337,9 @@ def record_context(session, runtime, case, baseline, action_id, source_observati
     action = runtime.store.get(content_id(action_id))
     patch = validate_patch(action.payload.get('arguments', {}).get('patch_content'))
     candidate = candidate_snapshot(baseline, patch)
-    proofs, image_id = _proofs(runtime.store, action_id, verification_ids, digest(patch), candidate.snapshot_hash)
+    runner_hash = _installed_runner_hash()
+    proofs, image_id = _proofs(runtime.store, action_id, verification_ids, digest(patch), candidate.snapshot_hash,
+                              current_runner_hash=runner_hash)
     data = {'session_id': session.session_id, 'case_id': case.case_id, 'client': session.client,
             'action_id': action_id, 'case_dir': _relative(session, case.root), 'repository': _relative(session, case.repository),
             'source_observation_id': source_observation_id, 'baseline_revision': baseline.revision,
@@ -346,7 +356,7 @@ def record_context(session, runtime, case, baseline, action_id, source_observati
     for check, proof in proofs.items():
         relative = _relative(session, case.root/'artifacts'/'approvals'/action_id.split(':')[1]/(check+'.json'))
         data['artifacts'][relative] = digest(canonical_json(proof)+b'\n')
-    _validate_binding(session, runtime.store, data)
+    _validate_binding(session, runtime.store, data, current_runner_hash=runner_hash)
     path = safe_path(session.root, 'approvals/'+action_id.split(':')[1]+'.json')
     if path.exists():
         existing = load_context(session, runtime.store, action_id)

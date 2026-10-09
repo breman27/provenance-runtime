@@ -213,3 +213,28 @@ class ManagerTests(unittest.TestCase):
         self.assertEqual(grant.state, 'STALE')
         self.assertEqual(self.manager.admit(self.action).state, 'STALE')
         self.assertEqual(self.count('Effect'), 0)
+
+    @staticmethod
+    def upgraded_runner_read():
+        original = Path.read_bytes
+        def read(path):
+            data = original(path)
+            return data+b'\n# harmless installed verifier update\n' if path.name == 'runner.py' else data
+        return read
+
+    def test_historical_receipt_and_withdrawal_survive_installed_verifier_update(self):
+        grant = self.manager.approve(self.action)
+        receipt = self.manager.admit(self.action)
+        with patch.object(Path, 'read_bytes', self.upgraded_runner_read()):
+            self.assertTrue(self.runtime.local_receipt(self.action).integrity.ok)
+            self.assertEqual(self.manager.inspect(self.action).state, 'COMMITTED')
+            self.assertEqual(self.manager.admit(self.action).effect_id, receipt.effect_id)
+            self.assertEqual(self.manager.revoke(grant.authority_id).state, 'COMMITTED')
+        self.assertEqual(self.count('Effect'), 1)
+
+    def test_new_permission_requires_current_verifier_compatibility(self):
+        with patch.object(Path, 'read_bytes', self.upgraded_runner_read()):
+            with self.assertRaises(InvestigationError) as caught:
+                self.manager.approve(self.action)
+        self.assertEqual(caught.exception.code, 'VERIFICATION_FAILED')
+        self.assertEqual(self.count('Authority'), 0)

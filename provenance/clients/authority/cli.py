@@ -29,6 +29,15 @@ def _save(root, result):
     safe_path(case_dir, 'authority-report.md').write_text(render_authority_report(result), encoding='utf-8', newline='\n')
 
 
+def _fallback(result):
+    return ('Application permission state: '+result.state+'\nAction: '+result.action_id+
+            '\nAuthority: '+str(result.authority_id)+'\nEffect: '+str(result.effect_id)+'\n'+result.reason+'\n')
+
+
+def _readable(result, machine):
+    return '' if machine else render_authority_report(result)
+
+
 def run_cli(args):
     result = None
     try:
@@ -52,11 +61,18 @@ def run_cli(args):
         if command != 'inspect':
             try:
                 _save(args.session_dir, result)
-            except (OSError, InvestigationError, ProvenanceError, sqlite3.Error) as error:
+            except Exception:
+                # Report failures must never hide a completed permission/effect mutation.
                 _output({'error': {'code': 'REPORT_WRITE', 'detail': 'Decision/result is retained but the report could not be saved.'},
-                         'result': result.as_dict()}, 'REPORT_WRITE: Result is retained; report could not be saved.\n'+render_authority_report(result), args.json)
+                         'result': result.as_dict()}, 'REPORT_WRITE: Result is retained; report could not be saved.\n'+_fallback(result), args.json)
                 return 1
-        _output(result.as_dict(), render_authority_report(result), args.json)
+        try:
+            readable = _readable(result, args.json)
+        except Exception:
+            _output({'error': {'code': 'REPORT_RENDER', 'detail': 'Readable report could not be rendered.'},
+                     'result': result.as_dict()}, 'REPORT_RENDER\n'+_fallback(result), args.json)
+            return 1
+        _output(result.as_dict(), readable, args.json)
         return 3 if command == 'admit' and result.state != 'COMMITTED' else 0
     except (InvestigationError, ProvenanceError, OSError, sqlite3.Error) as error:
         code = error.code if isinstance(error, InvestigationError) else error.problem.code if isinstance(error, ProvenanceError) else 'IO_ERROR'
@@ -67,9 +83,9 @@ def run_cli(args):
             try:
                 result = manager.inspect(args.action)
                 envelope['result'] = result.as_dict()
-                readable += render_authority_report(result)
+                readable += _readable(result, args.json)
                 _save(args.session_dir, result)
-            except (InvestigationError, ProvenanceError, OSError, sqlite3.Error):
+            except Exception:
                 envelope['report_warning'] = 'Current record facts are retained; the refreshed report could not be saved.'
         _output(envelope, readable, args.json)
         if code == 'OPTIONS':

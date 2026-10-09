@@ -6,6 +6,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from provenance.__main__ import main
+from provenance import import_graph, make_node, Parent
+from provenance.format import canonical_json, parse_json
 from provenance.clients.authority.context import record_context
 from tests.authority_support import pending
 
@@ -96,6 +98,44 @@ class AuthorityCliTests(unittest.TestCase):
         self.assertEqual(data['result']['state'], 'STALE')
         saved = json.loads((self.case.root/'authority-report.json').read_bytes())
         self.assertEqual(saved['state'], 'STALE')
+
+    def test_imported_decision_metadata_stays_untrusted_and_cannot_crash_reports(self):
+        from datetime import timedelta
+        action = self.store.get(self.action)
+        for index, metadata in enumerate(({'reason': 'imported note'}, 'imported annotation',
+                {'sequence': 'imported string', 'reason': 'untrusted'},
+                {'sequence': 999, 'reason': 'imported complete-looking history'})):
+            node = make_node('Authority', {'issuer_id': 'human-operator', 'subject': 'observed-service',
+                'action_id': self.action, 'action_type': action.payload['action_type'], 'resource': action.payload['resource'],
+                'allowed': True, 'expires_at': '2026-10-10T00:00:00.000000Z', 'decision': metadata},
+                [Parent('subject', self.action)], 'human-operator', self.runtime.clock()+timedelta(seconds=index))
+            import_graph(self.store, canonical_json({'format': 'provenance-runtime-export', 'version': '0.1',
+                'nodes': [{'id': node.id, 'body': parse_json(node.canonical_body)}]}))
+        code, result = self.run_command('inspect')
+        self.assertEqual(code, 0)
+        self.assertEqual(result['state'], 'AWAITING_APPROVAL')
+        code, readable = self.run_command('inspect', json_output=False)
+        self.assertEqual(code, 0)
+        self.assertIn('imported note', readable)
+        history = readable.split('## Operator decision history')[1]
+        self.assertIn('No operator decision has been recorded', history)
+        self.assertNotIn('imported', history)
+        self.assertEqual(self.run_command('approve')[1]['state'], 'APPROVED')
+        code, result = self.run_command('admit')
+        self.assertEqual(code, 0)
+        self.assertEqual(result['state'], 'COMMITTED')
+
+    def test_json_inspection_and_persisted_results_survive_markdown_failure(self):
+        with patch('provenance.clients.authority.cli.render_authority_report', side_effect=ValueError('render failure')):
+            self.assertEqual(self.run_command('inspect')[0], 0)
+            code, result = self.run_command('approve')
+            self.assertEqual(code, 1)
+            self.assertEqual(result['error']['code'], 'REPORT_WRITE')
+            self.assertEqual(result['result']['state'], 'APPROVED')
+            code, result = self.run_command('admit')
+            self.assertEqual(code, 1)
+            self.assertEqual(result['result']['state'], 'COMMITTED')
+            self.assertTrue(result['result']['effect_id'])
 
     def test_cli_manual_default_and_explicit_auto(self):
         with patch('provenance.clients.observed_service.cli.run_cli', return_value=0) as run:

@@ -23,7 +23,10 @@ def render_authority_report(result):
                  'Candidate snapshot: '+context['candidate_snapshot'], 'Pinned verifier image: '+context['image_id']],
         outcome=result.state, reason=result.reason, notes=notes)
     lines = [body.rstrip(), '', '## Exact proposed diff', '', *_block(diff, 'diff'), '', '## Operator decision history', '']
-    grants = [r for r in records.values() if r['body']['kind'] == 'Authority' and r['body']['payload'].get('decision')]
+    grants = [r for r in records.values() if r['body']['kind'] == 'Authority'
+              and r['body']['producer'] == 'human-operator'
+              and r.get('admission') == {'principal_id': 'human-operator', 'operation': 'authorize'}
+              and type(r['body']['payload'].get('decision')) is dict]
     for row in sorted(grants, key=lambda r: r['body']['payload']['decision'].get('sequence', 0)):
         payload = row['body']['payload']
         metadata = payload['decision']

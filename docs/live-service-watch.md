@@ -1,5 +1,7 @@
 # Live service watcher
 
+New command-line/helper sessions default to [manual authority](human-authority.md). Verified repairs emit `APPROVAL_PENDING` with a full Action ID and session path, while collection continues. Use that session path for `authority list`, `inspect`, `approve` and `admit`. Stopping collection preserves pending proposals. `--approval auto` explicitly selects the historical automatic receipt behavior in the October 7 run described below; programmatic defaults remain automatic.
+
 This is the interactive experiment: leave one process running, edit a real repository from the chat, and observe what the collector and API agent do. The watcher never changes the watched repository. It has no injected failure scenario or predetermined edit sequence.
 
 ## Start

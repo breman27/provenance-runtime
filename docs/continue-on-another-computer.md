@@ -1,6 +1,6 @@
 # Continue on another computer
 
-The completed agent integration is on `main` in [breman27/provenance-runtime](https://github.com/breman27/provenance-runtime). This note records the October 7, 2026 handoff.
+The project is in [breman27/provenance-runtime](https://github.com/breman27/provenance-runtime). The October 9 milestone adds a durable [human authority workflow](human-authority.md); its [verification record](human-authority-verification.md) records final checks and review. The October 7 integration results below remain historical evidence.
 
 ## Get the code
 
@@ -26,7 +26,7 @@ Ordinary unit tests do not invoke Docker or a model. The integration suite runs 
 
 The API key and private `work/` case databases/reports are excluded from Git and will not appear in the new clone. The committed verification record preserves the results of the original live runs. Create new cases to reproduce them; transfer old private case folders separately if you need their original graphs.
 
-## Current state
+## Historical October 7 integration state
 
 - All 135 unit tests and five real Docker integration tests passed.
 - Two actual OpenAI scenarios passed, using `gpt-4.1-mini-2025-04-14` across three model calls.
@@ -36,11 +36,13 @@ The API key and private `work/` case databases/reports are excluded from Git and
 - The runtime core and canonical format remain unchanged. Real source edits, Git commits, remote PR creation, background monitoring, and a chat UI are outside this example client's effects. `Runtime.commit` records a simulated SQLite receipt.
 - The optional Codex CLI backend stays fail-closed because the installed CLI did not honor one execution restriction. The OpenAI API backend completed the live milestone.
 
-## Next known follow-up
+## Current authority milestone and next work
 
 The [October 9 cleanup](portable-service-cleanup.md) fixes Windows service-report encoding, makes redirected-source checks portable, and closes the previously deferred duplicate/contradictory API-envelope validation issue.
 
-The next feature is an explicit authority workflow. The library already enforces scoped grants, denial, expiration and revocation; example clients still grant authority automatically after successful candidate tests. A verified proposal should wait durably for a separate trusted operator or policy decision before a grant and gate admission. The continuous watcher and shared record reports are now present; see the [live watcher](live-service-watch.md).
+New observed-service/watcher CLI sessions default to manual approval. Verified proposals wait without Authority/Effect; separate operator commands list, inspect, approve, deny, renew, revoke and admit. The queue survives stopping the watcher, operators make no model calls, and collection continues while decisions wait. Original fixture clients and omitted programmatic modes retain automatic behavior. Private approval sessions bind host paths; create fresh cases on another computer rather than assuming that transferred sessions can be rebound.
+
+The next substantial milestone is a trusted executor for a real bounded effect, with an atomic source-version check and recovery/idempotency around that mutation. First try the recorded/Docker manual walkthrough, assess the operator reports, and choose the exact real consequence to permit. A shell-capable agent needs separate OS/service identity and protected issuer/database/effect credentials; the bounded API model currently has only investigation tools. No general IAM, remote approval service or real source write has been added.
 
 Start a new coding chat in this repository with: “Read `docs/continue-on-another-computer.md` and continue provenance-runtime from that handoff.”
 

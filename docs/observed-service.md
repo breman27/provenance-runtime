@@ -2,6 +2,8 @@
 
 For the interactive, continuously running experiment, use the [live service watcher](live-service-watch.md). The benchmark below is retained as a bounded replay/acceptance harness.
 
+As of October 9, new CLI runs default to [manual authority](human-authority.md). Passing candidates wait at `AWAITING_APPROVAL`; use separate `authority inspect`, `approve` and `admit` commands. Add `--approval auto` to reproduce the historical automatic receipt results described below. Existing programmatic calls keep their automatic default.
+
 This benchmark starts with a working sensor-processing repository, captures real operational logs, deploys a code change, and asks an API agent to investigate. No human hint is supplied. The agent chooses its evidence-gathering tools through native OpenAI Responses function calls.
 
 The service processes a batch of readings for a dashboard. Its documented contract requires outputs in 0–100, preserving inputs already in range. The working batch returns `12, 0, 50, 100, 100, 100`. The changed implementation returns `12, 0, 50, 100, 125, 200`. It still starts and emits ordinary `reading_processed` logs: the model must identify the behavioral violation from the data and contract.

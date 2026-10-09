@@ -22,6 +22,8 @@ The record model is provider-neutral. The current gate implements one action typ
 
 Generated agent reports use the same [record-based report format](docs/reporting.md): Evidence/Observations, Claims, ProposedActions, Verifications, Authorities, Effects, and a separate Outcome. Records show IDs and parent links; the layout is reusable by other clients.
 
+New observed-service commands default to [manual human authority](docs/human-authority.md): successful candidate tests return `AWAITING_APPROVAL`. A separate local operator inspects, approves and admits the exact action without a model call. The watcher keeps collecting while permission waits. Use `--approval auto` for the existing preapproved fixture; omitted programmatic modes retain automatic behavior. Effects remain simulated SQLite receipts.
+
 ## Live service watcher
 
 Keep a collector running while editing a real demo repo from the chat. It captures changing working-tree versions and real service logs into one provenance graph, and queues API investigations while collection continues. See the [live walkthrough](docs/live-service-watch.md).

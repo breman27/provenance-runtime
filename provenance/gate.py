@@ -50,7 +50,9 @@ def _existing(runtime, action_id, effect_id):
     if report.ok:
         effect = store.get(effect_id)
         action_refs = [p.node_id for p in effect.parents if p.role == "action"]
-        if effect.kind != "Effect" or action_refs != [action_id] or effect.payload["receipt"].get("action_id") != action_id:
+        if (effect.kind != "Effect" or action_refs != [action_id] or effect.payload["receipt"].get("action_id") != action_id
+                or store.admission(effect_id) != Admission(effect.producer, 'effect')
+                or effect.producer != effect.payload['policy']['subject']):
             report = ValidationReport(False, report.visited,
                                       (Problem("MAPPING_MISMATCH", effect_id, "local receipt does not bind requested action"),))
         else:
@@ -61,13 +63,33 @@ def _existing(runtime, action_id, effect_id):
     return CommitResult(effect_id, True, report, state)
 
 
+def local_receipt(runtime, action_id):
+    store = runtime.store
+    existing = store._local_effect(action_id)
+    if existing is not None:
+        return _existing(runtime, action_id, existing)
+    # A lost binding is corruption, not an unexecuted action. Imported history
+    # has no local effect admission and never establishes local execution.
+    for node_id in store.all_ids():
+        admission = store.admission(node_id)
+        if admission is None or admission.operation != 'effect':
+            continue
+        node = store.get(node_id)
+        if (node.kind == 'Effect' and any(p.role == 'action' and p.node_id == action_id for p in node.parents)):
+            report = store.validate(node_id)
+            broken = ValidationReport(False, report.visited,
+                                      (Problem('MAPPING_MISSING', node_id, 'locally admitted effect has lost its retry binding'),))
+            return CommitResult(node_id, True, broken, None)
+    return None
+
+
 def commit_effect(runtime, action_id: str, verification_ids: tuple[str, ...],
                   authority_id: str | None) -> CommitResult:
     store, policy = runtime.store, runtime.policy
     with store.write_transaction():
-        existing = store._local_effect(action_id)
+        existing = local_receipt(runtime, action_id)
         if existing is not None:
-            return _existing(runtime, action_id, existing)
+            return existing
         action_report = _validate(store, action_id)
         action = store.get(action_id)
         if action.kind != "ProposedAction":

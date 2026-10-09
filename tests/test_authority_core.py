@@ -75,7 +75,24 @@ class AuthorityCoreTests(unittest.TestCase):
         self.assertEqual(before, self.store.all_ids())
 
     def test_unmapped_historical_effect_is_not_local_receipt(self):
-        self.commit()
+        receipt = self.commit()
         with self.store.write_transaction():
             self.store._db.execute('DELETE FROM local_effects WHERE action_id=?', (self.action,))
+            self.store._db.execute('DELETE FROM admissions WHERE node_id=?', (receipt.effect_id,))
         self.assertIsNone(self.runtime.local_receipt(self.action))
+
+    def test_missing_mapping_for_locally_admitted_effect_is_integrity_failure(self):
+        receipt = self.commit()
+        with self.store.write_transaction():
+            self.store._db.execute('DELETE FROM local_effects WHERE action_id=?', (self.action,))
+        result = self.runtime.local_receipt(self.action)
+        self.assertIsNotNone(result)
+        self.assertFalse(result.integrity.ok)
+        self.assertEqual(result.effect_id, receipt.effect_id)
+
+    def test_mapping_to_imported_effect_is_integrity_failure(self):
+        receipt = self.commit()
+        with self.store.write_transaction():
+            self.store._db.execute('DELETE FROM admissions WHERE node_id=?', (receipt.effect_id,))
+        result = self.runtime.local_receipt(self.action)
+        self.assertFalse(result.integrity.ok)

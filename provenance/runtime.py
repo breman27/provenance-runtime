@@ -146,10 +146,9 @@ class Runtime:
 
     def local_receipt(self, action_id: str):
         """Read the local retry receipt without issuing permission or creating records."""
-        from .gate import _existing
+        from .gate import local_receipt
         with self.store.read_snapshot():
-            effect_id = self.store._local_effect(action_id)
-            return None if effect_id is None else _existing(self, action_id, effect_id)
+            return local_receipt(self, action_id)
 
     def invalidate(self, handle: ControlHandle, target_id: str, reason: str) -> str:
         principal = self._registered(self._controllers, handle)

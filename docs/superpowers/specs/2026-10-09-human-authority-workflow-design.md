@@ -1,6 +1,6 @@
 # Human authority workflow
 
-Draft for review — October 9, 2026. Based on `main` at `30d5380`.
+Approved for implementation planning — October 9, 2026. Based on `main` at `30d5380`. The user approved proceeding after reviewing the design and its local infrastructure trust boundary.
 
 ## Purpose
 

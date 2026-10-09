@@ -18,6 +18,8 @@ Reading evidence and running bounded investigation tools retain their existing p
 
 The existing local trust boundary remains explicit: the host application and local processes with access to its runtime handles/database are trusted. This is not a Python sandbox or a multi-user identity system. The operator role is fixed by trusted application configuration; a name in model output or an arbitrary `--issuer` argument cannot confer permission. No remote approval endpoint is added.
 
+The current guarantee applies to the remote API model through its restricted host tool interface. A shell-capable agent running with the operator's OS identity could invoke the approval CLI or modify the database; this local design does not authenticate such a caller as human. Deployments granting general execution must isolate the agent from approval commands, issuer credentials and database writes, using separate OS/service identities and an authenticated operator channel. Credentials for future real effects must likewise stay with a trusted executor whose access requires gate admission. The local operator role and audit metadata do not prove physical human participation.
+
 The model keeps its existing bounded tools: logs, source, diff, tests and finish. It receives no issuer/control handles or approval tools. Its output cannot create Authority, Verification, Effect, Invalidation or Supersession records.
 
 The effect remains `repo.repair.simulated`: a local SQLite receipt. Applying a patch, creating a Git commit/PR, deployment, standing grants, delegation, cryptographic signing, multiple approvers and general policy languages are deferred.
@@ -130,6 +132,7 @@ Admission chooses the latest eligible trusted grant automatically and then passe
 6. Revocation before use refuses admission; after use it preserves the historical receipt and reports changed justification.
 7. Source changes while pending, during review, or before admission refuse the old proposal, even with passing tests. Watcher source supersession and cold-process direct reads both establish this.
 8. Missing/failed/mismatched/invalidated checks, wrong resources, altered artifacts/context, imported Authority/Effects and privileged model fields cannot grant or admit.
+   The model tool catalogue contains no approval/revocation/admission operation; forged permission text and issuer labels remain data. This acceptance check covers the bounded API-agent interface, not arbitrary local code with operator privileges.
 9. Crash/restart at each multi-record permission step cannot recover an obsolete grant as usable; no recovery creates an Effect.
 10. The collector continues while decisions wait, and stop/restart preserves the queue. No operator command invokes a model.
 11. Existing golden format vectors, old authorize callers, automatic fixture results, UTF-8 output and default Windows tests stay compatible.

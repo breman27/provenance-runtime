@@ -44,7 +44,7 @@ def initialize_session(repository, directory):
         safe_path(directory, name).mkdir(parents=True, exist_ok=True)
     mirror = directory/'repository'
     safe_path(mirror, TEST_PATH).write_bytes(TEST_SOURCE)
-    safe_path(mirror, 'README.md').write_text(SERVICE_CONTRACT)
+    safe_path(mirror, 'README.md').write_text(SERVICE_CONTRACT, encoding='utf-8', newline='\n')
     safe_path(mirror, 'service.py').write_bytes(Path(__file__).with_name('service.py').read_bytes())
     _git(mirror, 'init', '--initial-branch=observed')
     _git(mirror, 'config', 'core.autocrlf', 'false')

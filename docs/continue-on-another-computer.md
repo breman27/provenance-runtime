@@ -38,7 +38,9 @@ The API key and private `work/` case databases/reports are excluded from Git and
 
 ## Next known follow-up
 
-The independent API review found one deferred Minor issue: the raw provider envelope parser accepts duplicate top-level keys and does not reject a message marked incomplete if the overall response says completed. The decision schema, patch restrictions, independent tests, authority, and gate still apply. A focused follow-up can tighten these two envelope checks with mocked HTTP regressions; no conforming API response triggered them in the actual runs.
+The [October 9 cleanup](portable-service-cleanup.md) fixes Windows service-report encoding, makes redirected-source checks portable, and closes the previously deferred duplicate/contradictory API-envelope validation issue.
+
+The next feature is an explicit authority workflow. The library already enforces scoped grants, denial, expiration and revocation; example clients still grant authority automatically after successful candidate tests. A verified proposal should wait durably for a separate trusted operator or policy decision before a grant and gate admission. The continuous watcher and shared record reports are now present; see the [live watcher](live-service-watch.md).
 
 Start a new coding chat in this repository with: “Read `docs/continue-on-another-computer.md` and continue provenance-runtime from that handoff.”
 

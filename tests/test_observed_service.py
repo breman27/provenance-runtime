@@ -60,6 +60,43 @@ class ObservedServiceTests(unittest.TestCase):
         self.temporary.cleanup()
     def run_case(self, responses=None, scenario='regression', budget=8):
         return run_experiment(self.root, RecordedServiceAgent(steps() if responses is None else responses), self.verifier, scenario, budget)
+    def test_report_is_utf8_under_an_ascii_default_text_encoding(self):
+        original_open = Path.open
+        def restrictive_open(path, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
+            if path.name == 'report.md' and 'w' in mode and encoding in (None, 'locale'):
+                encoding = 'ascii'
+            return original_open(path, mode, buffering, encoding, errors, newline)
+        with patch.object(Path, 'open', restrictive_open):
+            try:
+                report = self.run_case()
+            except UnicodeError as error:
+                self.fail('Report writing depends on the default text encoding: ' + str(error))
+        self.assertEqual(report['outcome'], 'ACCEPTED', report['reason'])
+        saved = (self.root / 'report.md').read_bytes().decode('utf-8')
+        self.assertIn('Evidence → Claim → ProposedAction', saved)
+        self.assertIn('Effects', saved)
+    def test_patch_artifact_preserves_utf8_candidate_text(self):
+        candidate = GOOD_SOURCE.decode().replace('    return', '    """Réparation → bornes."""\n    return')
+        report = self.run_case(steps(patch_content=candidate))
+        self.assertEqual(report['outcome'], 'REFUSED')  # The byte-matching test double rejects this variant.
+        saved = (self.root / 'artifacts/repair.patch').read_bytes().decode('utf-8')
+        self.assertIn('Réparation → bornes.', saved)
+    def test_invalid_contract_bytes_return_structured_baseline_error(self):
+        contract = self.root / 'repository/README.md'
+        class EditingAgent(RecordedServiceAgent):
+            def step(self, *args, **kwargs):
+                result = super().step(*args, **kwargs)
+                contract.write_bytes(b'\xff')
+                return result
+        try:
+            report = run_experiment(self.root, EditingAgent(steps()), self.verifier)
+        except UnicodeError as error:
+            self.fail('Malformed contract bytes escaped the baseline guard: ' + str(error))
+        self.assertEqual(report['outcome'], 'ERROR')
+        self.assertEqual(report['error']['code'], 'BASELINE_CHANGED')
+        saved = json.loads((self.root / 'report.json').read_bytes())
+        self.assertEqual(saved['error']['code'], 'BASELINE_CHANGED')
+        self.assertIsNone(saved['effect_id'])
     def test_working_run_precedes_change_and_current_logs_expose_regression(self):
         report = self.run_case()
         self.assertEqual(report['outcome'], 'ACCEPTED', report['reason'])

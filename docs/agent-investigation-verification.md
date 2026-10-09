@@ -52,4 +52,6 @@ Docker Desktop initially failed on inaccessible Windows AF_UNIX runtime sockets.
 
 Deferred minor: the raw API envelope parser accepts duplicate top-level keys and does not reject an explicitly incomplete message when the response's overall status says completed. The independently validated decision, candidate tests, authority, and gate still apply; no conforming API response was found that triggers this contradiction. Additional envelope validation can tighten that edge without changing the contract. The review grades it Minor; no execution/authority bypass was found.
 
+Resolved October 9, 2026: the [portability/parsing cleanup](portable-service-cleanup.md) rejects both conditions with mocked regressions, without changing the gate or model request settings.
+
 Private case artifacts remain ignored under `work/`; readable/JSON reports are saved separately under the original chat's `outputs/`. The user subsequently authorized committing and publishing the finished implementation to continue on another computer. The [continuation handoff](continue-on-another-computer.md) records setup, verified behavior, and the deferred minor; credentials and private cases remain excluded from Git.

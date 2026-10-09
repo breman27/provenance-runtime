@@ -48,7 +48,7 @@ def prepare_service(root):
     safe_path(repo, TARGET).write_bytes(GOOD_SOURCE)
     safe_path(repo, TEST_PATH).write_bytes(TEST_SOURCE)
     safe_path(repo, 'service.py').write_bytes(Path(__file__).with_name('service.py').read_bytes())
-    safe_path(repo, 'README.md').write_text(SERVICE_CONTRACT)
+    safe_path(repo, 'README.md').write_text(SERVICE_CONTRACT, encoding='utf-8', newline='\n')
     _git(repo, 'init', '--initial-branch=service')
     _git(repo, 'config', 'core.autocrlf', 'false')
     _git(repo, 'config', 'user.name', 'Provenance service fixture')
@@ -77,7 +77,7 @@ def baseline_unchanged(case, snapshot):
             fail('BASELINE_CHANGED', 'verify', 'Deployed source or tests changed during investigation')
     if safe_path(case.repository, 'service.py').read_bytes() != Path(__file__).with_name('service.py').read_bytes():
         fail('BASELINE_CHANGED', 'verify', 'Service entry point changed during investigation')
-    if safe_path(case.repository, 'README.md').read_text() != SERVICE_CONTRACT:
+    if safe_path(case.repository, 'README.md').read_bytes() != SERVICE_CONTRACT.encode('utf-8'):
         fail('BASELINE_CHANGED', 'verify', 'Service contract changed during investigation')
 
 
@@ -316,7 +316,7 @@ def run_experiment(case_dir, agent, verifier, scenario='regression', max_steps=8
                             report['trace'] = {'status': trace.statuses[receipt.effect_id], 'records': [n.id for n in trace.nodes]}
                         except ProvenanceError as error:
                             report['outcome'], report['reason'] = 'REFUSED', error.problem.detail
-                        safe_path(case.root, 'artifacts/repair.patch').write_text(unified_patch(current.files[TARGET].decode(), decision.patch_content))
+                        safe_path(case.root, 'artifacts/repair.patch').write_text(unified_patch(current.files[TARGET].decode(), decision.patch_content), encoding='utf-8', newline='\n')
                     break
             check_current()
             safe_path(directory, 'result.json').write_bytes(canonical_json(result))
@@ -340,7 +340,7 @@ def run_experiment(case_dir, agent, verifier, scenario='regression', max_steps=8
         if case:
             try:
                 safe_path(case.root, 'report.json').write_bytes(canonical_json(report))
-                safe_path(case.root, 'report.md').write_text(render_report(report))
+                safe_path(case.root, 'report.md').write_text(render_report(report), encoding='utf-8', newline='\n')
             except (InvestigationError, OSError) as error:
                 report.update(outcome='ERROR', error={'code': 'REPORT_WRITE', 'stage': 'report', 'detail': str(error)[:2000]}, reason='Could not save report safely.')
     return report

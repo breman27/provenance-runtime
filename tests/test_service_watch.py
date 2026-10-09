@@ -1,5 +1,7 @@
 import json
+import os
 import random
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -57,7 +59,7 @@ class ServiceWatchTests(unittest.TestCase):
         self.repo = self.root/'service'
         (self.repo/'src').mkdir(parents=True)
         (self.repo/'src/clamp.py').write_bytes(GOOD_SOURCE)
-        (self.repo/'README.md').write_text(SERVICE_CONTRACT)
+        (self.repo/'README.md').write_text(SERVICE_CONTRACT, encoding='utf-8')
         _git(self.repo,'init','--initial-branch=service')
         _git(self.repo,'config','user.name','Test fixture')
         _git(self.repo,'config','user.email','fixture@example.invalid')
@@ -76,7 +78,7 @@ class ServiceWatchTests(unittest.TestCase):
         self.watcher.start()
         return self.watcher
     def events(self):
-        return [json.loads(line) for line in (self.root/'session/events.jsonl').read_text().splitlines()]
+        return [json.loads(line) for line in (self.root/'session/events.jsonl').read_text(encoding='utf-8').splitlines()]
     def wait_agent(self):
         self.watcher.thread.join(5)
         self.assertFalse(self.watcher.thread.is_alive())
@@ -171,7 +173,27 @@ class ServiceWatchTests(unittest.TestCase):
         self.assertEqual(observation.payload['stderr'],'ZeroDivisionError')
     def test_source_symlink_and_existing_session_are_rejected(self):
         from provenance.clients.repo_repair.errors import InvestigationError
+        from provenance.clients.observed_service.watch import initialize_session
+        source_bytes = (self.repo/TARGET).read_bytes()
+        external = self.root/'external-source'
+        external.mkdir()
+        (external/'clamp.py').write_bytes(source_bytes)
         (self.repo/TARGET).unlink()
-        (self.repo/TARGET).symlink_to(self.repo/'README.md')
+        if os.name == 'nt':
+            (self.repo/'src').rmdir()
+            created = subprocess.run(('cmd', '/c', 'mklink', '/J', str(self.repo/'src'), str(external)),
+                                     capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            self.assertEqual(created.returncode, 0, created.stderr)
+        else:
+            (self.repo/TARGET).symlink_to(external/'clamp.py')
         with self.assertRaises(InvestigationError):
             read_working_version(self.repo)
+        self.assertEqual((external/'clamp.py').read_bytes(), source_bytes)
+        session = self.root/'existing-session'
+        session.mkdir()
+        sentinel = session/'keep.txt'
+        sentinel.write_bytes(b'preserved')
+        with self.assertRaises(InvestigationError) as raised:
+            initialize_session(self.repo, session)
+        self.assertEqual(raised.exception.code, 'CASE_EXISTS')
+        self.assertEqual(sentinel.read_bytes(), b'preserved')

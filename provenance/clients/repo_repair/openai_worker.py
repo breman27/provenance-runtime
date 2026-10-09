@@ -38,6 +38,15 @@ def _identifier(value):
     return value if type(value) is str and re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}', value) else None
 
 
+def _unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ApiFailure('API_PROTOCOL', 'OpenAI returned duplicate JSON object keys')
+        result[key] = value
+    return result
+
+
 def invoke(request):
     key = load_key()
     if not key: raise ApiFailure('API_KEY_MISSING', 'Configure OPENAI_API_KEY locally before using the OpenAI backend')
@@ -76,7 +85,7 @@ def invoke(request):
         while chunk := response.read(min(65536, LIMIT + 1 - size)):
             chunks.append(chunk); size += len(chunk)
             if size > LIMIT: raise ApiFailure('API_OUTPUT_LIMIT', 'API response exceeds 1 MiB')
-        try: data = json.loads(b''.join(chunks))
+        try: data = json.loads(b''.join(chunks), object_pairs_hook=_unique_object)
         except (ValueError, UnicodeError): raise ApiFailure('API_PROTOCOL', 'OpenAI returned malformed JSON') from None
         if type(data) is not dict: raise ApiFailure('API_PROTOCOL', 'OpenAI returned an unexpected response shape')
         if mode == 'preflight':
@@ -102,6 +111,8 @@ def invoke(request):
                 calls.append({k: item[k] for k in ('type', 'call_id', 'name', 'arguments')})
                 continue
             if kind != 'message': raise ApiFailure('API_TOOL_EVENT', 'Unexpected tool/output item from proposal-only API')
+            if item.get('status', 'completed') != 'completed':
+                raise ApiFailure('API_INCOMPLETE', 'OpenAI returned a noncompleted assistant message')
             if item.get('role') != 'assistant' or type(item.get('content')) is not list:
                 raise ApiFailure('API_PROTOCOL', 'OpenAI returned an invalid assistant message')
             for content in item['content']:

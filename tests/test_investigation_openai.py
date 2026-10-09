@@ -72,6 +72,26 @@ class OpenAIWorkerTests(unittest.TestCase):
                      b'invalid', b'[]', b'x' * 1048577, json.dumps(api_response(output=[])).encode()):
             with self.subTest(data=data[:60]), self.assertRaises(openai_worker.ApiFailure): self.invoke(data)
 
+    def test_duplicate_response_keys_are_rejected_without_echoing_payloads(self):
+        valid = json.dumps(api_response())
+        for raw in (valid.replace('"status": "completed"', '"status": "incomplete", "status": "completed"', 1),
+                    valid.replace('"input_tokens": 50', '"input_tokens": 49, "input_tokens": 50', 1),
+                    valid[:-1] + ', "private-field": "sensitive-value", "private-field": "other"}'):
+            with self.subTest(raw=raw[:70]):
+                with self.assertRaises(openai_worker.ApiFailure) as raised:
+                    self.invoke(raw.encode())
+                self.assertEqual(raised.exception.code, 'API_PROTOCOL')
+                self.assertNotIn('private-field', str(raised.exception))
+                self.assertNotIn('sensitive-value', str(raised.exception))
+
+    def test_noncompleted_message_is_rejected_despite_completed_response(self):
+        for message_status in ('incomplete', 'in_progress', None):
+            output = [dict(api_response()['output'][0], status=message_status)]
+            with self.subTest(status=message_status):
+                with self.assertRaises(openai_worker.ApiFailure) as raised:
+                    self.invoke(json.dumps(api_response(output=output)).encode())
+                self.assertEqual(raised.exception.code, 'API_INCOMPLETE')
+
     def test_http_errors_do_not_echo_provider_body_or_key(self):
         for status, code in ((401, 'API_AUTH'), (403, 'API_AUTH'), (429, 'API_RATE_LIMIT'), (500, 'API_HTTP')):
             with self.subTest(status=status), self.assertRaises(openai_worker.ApiFailure) as raised:

@@ -10,7 +10,7 @@ from types import MappingProxyType
 from typing import Callable
 
 from .errors import fail
-from .format import canonical_json, utc_timestamp
+from .format import canonical_json, parse_json, utc_timestamp
 from .model import Node, Parent, make_node
 from .projection import check_supersession
 from .store import Admission, Store
@@ -129,7 +129,8 @@ class Runtime:
         return self._admit("Verification", {"verifier_id": principal, "check": check, "passed": passed},
                            parents, principal, "verify")
 
-    def authorize(self, handle: AuthorityHandle, action_id: str, allowed: bool, expires_at: datetime) -> str:
+    def authorize(self, handle: AuthorityHandle, action_id: str, allowed: bool, expires_at: datetime,
+                  *, decision: dict | None = None) -> str:
         principal = self._registered(self._issuers, handle)
         action = self.store.get(action_id)
         if action.kind != "ProposedAction":
@@ -137,7 +138,18 @@ class Runtime:
         payload = {"issuer_id": principal, "subject": self.policy.subject, "action_id": action_id,
                    "action_type": action.payload["action_type"], "resource": action.payload["resource"],
                    "allowed": allowed, "expires_at": utc_timestamp(expires_at)}
+        if decision is not None:
+            if type(decision) is not dict:
+                fail("FORMAT", "authority decision metadata must be an object")
+            payload["decision"] = parse_json(canonical_json(decision))
         return self._admit("Authority", payload, [Parent("subject", action_id)], principal, "authorize")
+
+    def local_receipt(self, action_id: str):
+        """Read the local retry receipt without issuing permission or creating records."""
+        from .gate import _existing
+        with self.store.read_snapshot():
+            effect_id = self.store._local_effect(action_id)
+            return None if effect_id is None else _existing(self, action_id, effect_id)
 
     def invalidate(self, handle: ControlHandle, target_id: str, reason: str) -> str:
         principal = self._registered(self._controllers, handle)

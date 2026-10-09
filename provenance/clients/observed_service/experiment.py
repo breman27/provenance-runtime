@@ -19,12 +19,12 @@ from .agent import tools
 from ..reporting import report_record_snapshot, render_investigation_report
 from .service import READINGS
 from .contract import SERVICE_CONTRACT
+from ..authority.profiles import authority_policy
+from ..authority.context import create_session, open_session, record_context
 
 
-def service_policy():
-    return Policy('observed-service-v1', 'observed-service', ('collector',),
-                  {'tester': ('targeted_tests', 'full_suite')}, ('issuer',), ('controller',),
-                  {'repo.repair.simulated': ('targeted_tests', 'full_suite')})
+def service_policy(approval_mode='auto'):
+    return authority_policy(approval_mode)
 
 
 def prepare_service(root):
@@ -130,7 +130,7 @@ def render_report(report):
     return render_investigation_report(report, title='Observed service: '+report['outcome'], mode=mode)
 
 
-def run_experiment(case_dir, agent, verifier, scenario='regression', max_steps=8, *, prepared=None, guard=None, on_step=None):
+def run_experiment(case_dir, agent, verifier, scenario='regression', max_steps=8, *, prepared=None, guard=None, on_step=None, approval_mode='auto'):
     root = Path(case_dir).absolute()
     report = {'outcome': 'UNRESOLVED', 'backend': agent.backend, 'live_agent': agent.live,
               'case_dir': str(root), 'scenario': scenario, 'service_runs': [], 'steps': [], 'tests': [],
@@ -140,6 +140,7 @@ def run_experiment(case_dir, agent, verifier, scenario='regression', max_steps=8
     try:
         if (scenario not in ('regression', 'healthy') and not (scenario == 'live' and prepared)) or type(max_steps) is not int or not 1 <= max_steps <= 12:
             fail('OPTIONS', 'options', 'Known scenario and one to twelve steps required')
+        policy = service_policy(approval_mode)
         safe_path(root.parent, root.name)
         if prepared is None:
             if root.exists():
@@ -152,8 +153,19 @@ def run_experiment(case_dir, agent, verifier, scenario='regression', max_steps=8
             if case.root != root:
                 fail('CASE_PATH', 'options', 'Prepared case root differs from report root')
         store = Store(case.database)
-        runtime = Runtime(store, service_policy(), lambda: datetime.now(timezone.utc))
-        observer, tester, issuer = runtime.observer('collector'), runtime.verifier('tester'), runtime.issuer('issuer')
+        runtime = Runtime(store, policy, lambda: datetime.now(timezone.utc))
+        observer, tester = runtime.observer('collector'), runtime.verifier('tester')
+        issuer = runtime.issuer('issuer') if approval_mode == 'auto' else None
+        approval_session = None
+        if approval_mode == 'manual':
+            if prepared:
+                approval_session = open_session(prepared['approval_session_root'])
+                if approval_session.mode != approval_mode or prepared.get('approval_mode') != approval_mode:
+                    fail('APPROVAL_MODE', 'options', 'Prepared job differs from its persisted approval mode')
+            else:
+                approval_session = create_session(runtime, root, case.case_id, approval_mode, 'observed-service', case.repository)
+            report['approval_session_observation_id'] = approval_session.observation_id
+            report['approval_session_dir'] = str(approval_session.root)
         offered = {}
         logs = []
 
@@ -296,16 +308,25 @@ def run_experiment(case_dir, agent, verifier, scenario='regression', max_steps=8
                             _, verification_id = record_test(runtime, observer, tester, action_id, test, {})
                             verification_ids.append(verification_id)
                         check_current()
-                        authority_id = runtime.authorize(issuer, action_id, True, runtime.clock()+timedelta(minutes=15)) if all(t.passed for t in results) else None
-                        report['authority_id'] = authority_id
-                        try:
-                            receipt = runtime.commit(action_id, tuple(verification_ids), authority_id)
-                            report['outcome'], report['effect_id'] = 'ACCEPTED', receipt.effect_id
-                            report['reason'] = 'Agent detected the regression; its independently tested repair earned one simulated receipt.'
-                            trace = why(store, receipt.effect_id, 'execution')
-                            report['trace'] = {'status': trace.statuses[receipt.effect_id], 'records': [n.id for n in trace.nodes]}
-                        except ProvenanceError as error:
-                            report['outcome'], report['reason'] = 'REFUSED', error.problem.detail
+                        if approval_mode == 'manual':
+                            if all(t.passed for t in results):
+                                context = record_context(approval_session, runtime, case, current, action_id,
+                                    offered['source_current'].node_id, tuple(verification_ids))
+                                report['approval_context_observation_id'] = context.observation_id
+                                report['outcome'], report['reason'] = 'AWAITING_APPROVAL', 'Verified proposal awaits a local operator decision; no permission or receipt was issued.'
+                            else:
+                                report['outcome'], report['reason'] = 'REFUSED', 'Candidate did not pass the required independent checks.'
+                        else:
+                            authority_id = runtime.authorize(issuer, action_id, True, runtime.clock()+timedelta(minutes=15)) if all(t.passed for t in results) else None
+                            report['authority_id'] = authority_id
+                            try:
+                                receipt = runtime.commit(action_id, tuple(verification_ids), authority_id)
+                                report['outcome'], report['effect_id'] = 'ACCEPTED', receipt.effect_id
+                                report['reason'] = 'Agent detected the regression; its independently tested repair earned one simulated receipt.'
+                                trace = why(store, receipt.effect_id, 'execution')
+                                report['trace'] = {'status': trace.statuses[receipt.effect_id], 'records': [n.id for n in trace.nodes]}
+                            except ProvenanceError as error:
+                                report['outcome'], report['reason'] = 'REFUSED', error.problem.detail
                         safe_path(case.root, 'artifacts/repair.patch').write_text(unified_patch(current.files[TARGET].decode(), decision.patch_content), encoding='utf-8', newline='\n')
                     break
             check_current()

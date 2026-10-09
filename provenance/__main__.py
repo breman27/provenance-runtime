@@ -31,6 +31,7 @@ def main(argv=None) -> int:
     observed.add_argument('--responses', help='recorded tool-step JSON array')
     observed.add_argument('--max-steps', type=int, choices=range(1, 13), default=8)
     observed.add_argument('--json', action='store_true')
+    observed.add_argument('--approval', choices=('manual', 'auto'), default='manual')
     watch = commands.add_parser('watch-service', help='continuously observe a real service working tree')
     watch.add_argument('--repo', required=True)
     watch.add_argument('--session-dir', required=True, help='new directory for the continuous graph and logs')
@@ -39,6 +40,7 @@ def main(argv=None) -> int:
     watch.add_argument('--interval', type=int, default=5)
     watch.add_argument('--max-steps', type=int, choices=range(1, 13), default=8)
     watch.add_argument('--max-ticks', type=int, help='optional bounded smoke run; normally runs until interrupted')
+    watch.add_argument('--approval', choices=('manual', 'auto'), default='manual')
     args = parser.parse_args(argv)
     if args.command == 'watch-service':
         from pathlib import Path
@@ -51,7 +53,7 @@ def main(argv=None) -> int:
                 parser.error('--max-ticks must be positive')
             agent = OpenAIServiceAgent(args.model) if args.agent == 'openai' else None
             ServiceWatcher(Path(args.repo), Path(args.session_dir), ServiceVerifier(), agent,
-                           args.interval, args.max_steps).run(args.max_ticks)
+                           args.interval, args.max_steps, approval_mode=args.approval).run(args.max_ticks)
             return 0
         except (InvestigationError, ProvenanceError, OSError, UnicodeError) as error:
             print(str(error), file=sys.stderr)

@@ -1,5 +1,6 @@
 """Prompt locally for a key, then run healthy and regression API cases."""
 import getpass
+import argparse
 import os
 import subprocess
 import sys
@@ -11,6 +12,9 @@ def main():
     if sys.version_info < (3, 12):
         raise SystemExit('Python 3.12 or later is required')
     root = Path(__file__).resolve().parents[1]
+    parser = argparse.ArgumentParser(description='Run healthy and regression service investigations')
+    parser.add_argument('--approval', choices=('manual', 'auto'), default='manual')
+    args = parser.parse_args()
     environment = os.environ.copy()
     if not environment.get('OPENAI_API_KEY'):
         environment['OPENAI_API_KEY'] = getpass.getpass('OpenAI API key (hidden): ').strip()
@@ -22,7 +26,7 @@ def main():
         case = root/'work'/f'service-{scenario}-{stamp}'
         print(f'\nRunning {scenario}: {case}', flush=True)
         result = subprocess.run([sys.executable, '-m', 'provenance', 'observe-service',
-                                 '--agent', 'openai', '--scenario', scenario, '--case-dir', str(case)],
+                                 '--agent', 'openai', '--scenario', scenario, '--case-dir', str(case), '--approval', args.approval],
                                 cwd=root, env=environment)
         outcomes.append(result.returncode)
     return 0 if all(code == 0 for code in outcomes) else 1

@@ -4,6 +4,7 @@ from ..reporting import snapshot_records, render_record_report, _code
 
 def report_record_snapshot(store, report):
     roots = set(report.get('evidence', {}).values())
+    roots.update(report[key] for key in ('approval_session_observation_id', 'approval_context_observation_id') if report.get(key))
     for row in (report, report.get('old_action') or {}, *report.get('rounds', []), *report.get('tests', [])):
         roots.update(row[key] for key in ('claim_id','action_id','authority_id','effect_id','observation_id','verification_id') if row.get(key))
     return snapshot_records(store, roots, report.get('evidence', {}))

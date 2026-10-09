@@ -21,7 +21,8 @@ def run_cli(args):
             agent = RecordedServiceAgent(steps)
         else:
             agent = OpenAIServiceAgent(args.model)
-        report = run_experiment(Path(args.case_dir), agent, ServiceVerifier(), args.scenario, args.max_steps)
+        report = run_experiment(Path(args.case_dir), agent, ServiceVerifier(), args.scenario, args.max_steps,
+                                approval_mode=args.approval)
     except (InvestigationError, ProvenanceError, OSError) as error:
         print(str(error), file=sys.stderr)
         return 2
@@ -30,4 +31,4 @@ def run_cli(args):
         sys.stdout.buffer.write(output)
     else:
         sys.stdout.write(output.decode())
-    return {'ACCEPTED': 0, 'DETECTED': 0, 'HEALTHY': 0, 'UNRESOLVED': 4, 'ERROR': 1}.get(report['outcome'], 3)
+    return {'ACCEPTED': 0, 'AWAITING_APPROVAL': 0, 'DETECTED': 0, 'HEALTHY': 0, 'UNRESOLVED': 4, 'ERROR': 1}.get(report['outcome'], 3)

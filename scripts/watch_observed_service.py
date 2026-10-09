@@ -17,6 +17,7 @@ def main():
     parser.add_argument('--interval', type=int, default=5)
     parser.add_argument('--session-dir')
     parser.add_argument('--model')
+    parser.add_argument('--approval', choices=('manual', 'auto'), default='manual')
     args = parser.parse_args()
     if args.agent == 'openai' and not os.environ.get('OPENAI_API_KEY'):
         key = getpass.getpass('OpenAI API key (hidden): ').strip()
@@ -28,7 +29,7 @@ def main():
     sys.path.insert(0, str(root))
     from provenance.__main__ import main as run
     argv = ['watch-service', '--repo', args.repo, '--session-dir', session,
-            '--agent', args.agent, '--interval', str(args.interval)]
+            '--agent', args.agent, '--interval', str(args.interval), '--approval', args.approval]
     if args.model:
         argv += ['--model', args.model]
     print(f'Watching: {args.repo}\nSession: {session}\nLeave this terminal open. Ctrl+C stops the watcher.', flush=True)

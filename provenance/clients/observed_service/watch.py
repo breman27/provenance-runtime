@@ -12,6 +12,7 @@ from ..repo_repair.case import (CasePaths, Evidence, TEST_SOURCE, TARGET, TEST_P
                                _git, safe_path, capture_snapshot, digest, save_snapshot)
 from ..repo_repair.errors import InvestigationError, fail
 from .experiment import SERVICE_CONTRACT, ServiceVerifier, service_policy, run_experiment
+from ..authority.context import create_session
 
 
 @dataclass(frozen=True)
@@ -99,11 +100,13 @@ def console_line(event):
 
 class ServiceWatcher:
     def __init__(self, repository, directory, verifier, agent=None, interval=5, max_steps=8,
-                 random_source=None, output=print):
+                 random_source=None, output=print, *, approval_mode='auto'):
         if not 1 <= interval <= 3600 or not 1 <= max_steps <= 12:
             fail('OPTIONS', 'options', 'Interval must be 1–3,600 seconds and steps 1–12')
         self.repository, self.directory = Path(repository).absolute(), Path(directory).absolute()
         self.verifier, self.agent, self.interval, self.max_steps = verifier, agent, interval, max_steps
+        service_policy(approval_mode)
+        self.approval_mode = approval_mode
         self.random = random_source or random.SystemRandom()
         self.output = output
         self.stop = threading.Event()
@@ -128,8 +131,10 @@ class ServiceWatcher:
             self.agent.preflight()
         self.session = initialize_session(self.repository, self.directory)
         self.store = Store(self.session.database)
-        self.runtime = Runtime(self.store, service_policy(), lambda: datetime.now(timezone.utc))
+        self.runtime = Runtime(self.store, service_policy(self.approval_mode), lambda: datetime.now(timezone.utc))
         self.observer, self.controller = self.runtime.observer('collector'), self.runtime.controller('controller')
+        if self.approval_mode == 'manual':
+            create_session(self.runtime, self.directory, self.session.case_id, 'manual', 'watch-service', self.repository)
         self.event('WATCHING', repo=str(self.repository), session=str(self.directory),
                    interval_seconds=self.interval, live_agent=bool(self.agent and self.agent.live))
 
@@ -188,7 +193,8 @@ class ServiceWatcher:
                 logs.append(Evidence('logs_before', self.last_log.node_id, self.last_log.payload))
             logs.append(current_log)
             job = {'case': job_case, 'snapshot': self.snapshot, 'source': self.source, 'logs': logs,
-                   'fingerprint': self.version.fingerprint, 'number': self.investigation_index}
+                   'fingerprint': self.version.fingerprint, 'number': self.investigation_index,
+                   'approval_session_root': self.directory, 'approval_mode': self.approval_mode}
             with self.lock:
                 displaced = self.pending
                 self.pending = job
@@ -219,13 +225,16 @@ class ServiceWatcher:
         self.event('INVESTIGATION_STARTED', investigation=job['number'])
         try:
             report = run_experiment(job['case'].root, self.agent, self.verifier, 'live', self.max_steps,
-                                    prepared=job, guard=guard, on_step=on_step)
+                                    prepared=job, guard=guard, on_step=on_step, approval_mode=self.approval_mode)
             outcome = 'STALE' if (report.get('error') or {}).get('code') == 'BASELINE_CHANGED' else report['outcome']
             self.event('AGENT_RESULT', investigation=job['number'], outcome=outcome,
                        assessment=report['decision']['assessment'] if report['decision'] else None,
                        summary=report['decision']['summary'] if report['decision'] else report['reason'],
                        claim_id=report['claim_id'], effect_id=report['effect_id'],
                        report=str(job['case'].root/'report.md'))
+            if report['outcome'] == 'AWAITING_APPROVAL':
+                self.event('APPROVAL_PENDING', investigation=job['number'], action_id=report['action_id'],
+                           session_dir=str(self.directory), report=str(job['case'].root/'report.md'))
         except Exception:
             # Preserve a public failure marker without printing transport exceptions/credentials.
             self.event('AGENT_ERROR', investigation=job['number'], detail='Investigation stopped unexpectedly; inspect saved case artifacts')

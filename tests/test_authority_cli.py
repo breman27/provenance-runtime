@@ -87,6 +87,16 @@ class AuthorityCliTests(unittest.TestCase):
         self.assertTrue(data['result']['authority_id'])
         self.assertEqual(sum(self.store.get(i).kind == 'Authority' for i in self.store.all_ids()), 1)
 
+    def test_source_refusal_refreshes_recorded_state_in_operator_report(self):
+        self.run_command('approve')
+        (self.case.repository/'src/clamp.py').write_bytes(b'changed')
+        code, data = self.run_command('admit')
+        self.assertEqual(code, 3)
+        self.assertEqual(data['error']['code'], 'STALE')
+        self.assertEqual(data['result']['state'], 'STALE')
+        saved = json.loads((self.case.root/'authority-report.json').read_bytes())
+        self.assertEqual(saved['state'], 'STALE')
+
     def test_cli_manual_default_and_explicit_auto(self):
         with patch('provenance.clients.observed_service.cli.run_cli', return_value=0) as run:
             main(['observe-service', '--agent', 'recorded', '--responses', 'unused.json', '--case-dir', 'unused'])

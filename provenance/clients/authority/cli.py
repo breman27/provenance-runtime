@@ -61,7 +61,17 @@ def run_cli(args):
     except (InvestigationError, ProvenanceError, OSError, sqlite3.Error) as error:
         code = error.code if isinstance(error, InvestigationError) else error.problem.code if isinstance(error, ProvenanceError) else 'IO_ERROR'
         detail = error.detail if isinstance(error, InvestigationError) else error.problem.detail if isinstance(error, ProvenanceError) else str(error)[:1000]
-        _output({'error': {'code': code, 'detail': detail}}, code+': '+detail+'\n', args.json)
+        envelope = {'error': {'code': code, 'detail': detail}}
+        readable = code+': '+detail+'\n'
+        if args.authority_command in ('approve', 'admit') and code in ('STALE', 'VERIFICATION_FAILED', 'SOURCE_UNAVAILABLE'):
+            try:
+                result = manager.inspect(args.action)
+                envelope['result'] = result.as_dict()
+                readable += render_authority_report(result)
+                _save(args.session_dir, result)
+            except (InvestigationError, ProvenanceError, OSError, sqlite3.Error):
+                envelope['report_warning'] = 'Current record facts are retained; the refreshed report could not be saved.'
+        _output(envelope, readable, args.json)
         if code == 'OPTIONS':
             return 2
         return 3 if args.authority_command == 'admit' and code in ('STALE', 'VERIFICATION_FAILED', 'AUTHORITY_EXPIRED', 'AUTHORITY_REVOKED', 'AUTHORITY_DENIED') else 1

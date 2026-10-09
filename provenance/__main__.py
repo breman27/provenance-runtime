@@ -2,11 +2,28 @@
 import argparse
 import sqlite3
 import sys
+import re
 
 from .demo import run_demo
 from .errors import ProvenanceError
 from .format import canonical_json
 from .store import Store
+
+
+def _full_id(value):
+    if not re.fullmatch('sha256:[0-9a-f]{64}', value):
+        raise argparse.ArgumentTypeError('copy the full sha256: content ID from the report')
+    return value
+
+
+def _ttl(value):
+    try:
+        number = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError('TTL must be an integer from 1 to 60')
+    if not 1 <= number <= 60:
+        raise argparse.ArgumentTypeError('TTL must be an integer from 1 to 60')
+    return number
 
 
 def main(argv=None) -> int:
@@ -41,7 +58,27 @@ def main(argv=None) -> int:
     watch.add_argument('--max-steps', type=int, choices=range(1, 13), default=8)
     watch.add_argument('--max-ticks', type=int, help='optional bounded smoke run; normally runs until interrupted')
     watch.add_argument('--approval', choices=('manual', 'auto'), default='manual')
+    authority = commands.add_parser('authority', help='review and decide on local manual proposals without a model')
+    operations = authority.add_subparsers(dest='authority_command', required=True)
+    for name in ('list', 'inspect', 'approve', 'deny', 'revoke', 'admit'):
+        operation = operations.add_parser(name)
+        operation.add_argument('--session-dir', required=True)
+        operation.add_argument('--json', action='store_true')
+        if name == 'list':
+            operation.add_argument('--all', action='store_true', dest='include_all')
+        elif name == 'revoke':
+            operation.add_argument('--authority', required=True, type=_full_id)
+        else:
+            operation.add_argument('--action', required=True, type=_full_id)
+        if name in ('approve', 'deny', 'revoke'):
+            operation.add_argument('--reason')
+        if name == 'approve':
+            operation.add_argument('--ttl-minutes', type=_ttl, default=15)
+            operation.add_argument('--renew', action='store_true')
     args = parser.parse_args(argv)
+    if args.command == 'authority':
+        from .clients.authority.cli import run_cli
+        return run_cli(args)
     if args.command == 'watch-service':
         from pathlib import Path
         from .clients.observed_service.watch import ServiceWatcher

@@ -73,6 +73,8 @@ Decisions carry method `local-cli`, fixed actor label, context hash, reason, lif
 
 Withdrawal and existing-receipt inspection use intact recorded ownership even when source or context files are unavailable. New grants/admission require their matching files and proofs. Receipt retries skip external execution; corrupt ancestry, an inconsistent mapping, or a lost mapping for a locally admitted Effect is an integrity failure, never absence. Imported Effects have no local effect admission and do not establish local execution.
 
+Historical inspection, withdrawal and receipt retries also survive changes to the installed verifier runner. New grants/admission require its compatibility with the recorded proof. Imported Authority metadata remains untrusted graph history and is excluded from operator decision history. JSON inspection is independent of Markdown rendering; a failed readable-report write still returns the persisted permission/receipt result.
+
 Session paths bind to the host on which they were created. Relocation/rebinding is outside this version. Clone the code on another computer and create a fresh session there; use core graph inspection for historical records transferred separately.
 
 ## What prevents an agent approving itself

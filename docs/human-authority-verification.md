@@ -20,6 +20,8 @@ Windows, Python 3.12.14, ordinary default text encoding, Linux Docker engine:
 | Full actual Docker suite after mapping-integrity repair | 12 passed in 150.052 seconds; no skips. |
 | Additional source-refusal report regression and CLI checks | 7 passed in 11.569 seconds. |
 | Final full unit suite including report refresh | 233 passed in 233.921 seconds. |
+| Full unit suite after the independent review fix pass | 237 passed in 179.900 seconds. |
+| Full actual Docker suite after the independent review fix pass | 12 passed in 155.366 seconds; no skips. |
 
 Run the suites with:
 
@@ -41,3 +43,30 @@ This milestone performs no paid/live model run: the provider contract is unchang
 Windows OS locking and real junction rejection were exercised. The POSIX `fcntl`/symlink branches were implemented but were not run on a POSIX host during this milestone. Clock rollback cannot reorder decisions; expiry still follows the configured host wall clock. Physical probes observe source freshness and do not atomically freeze an external resource.
 
 The bounded API model has no approval/control/DB tools. The operator role is an audit label, not authenticated human identity. Same-user shell code and DB writers remain trusted; a general shell agent requires OS/service isolation and an authenticated operator channel. Real source mutation and its credential/recovery integration remain future work. Private cases and API credentials are excluded from publication.
+
+## Independent review and corrections
+
+One fresh GPT-6 Astra reviewer inspected the whole branch `30d5380..6a0d82a`, independently ran 42 targeted tests (all passed in 69.912 seconds), and inspected the Docker evidence. It found two Important defects and no Critical or Minor defects. The implementer addressed both in one test-first fix pass; no second review was requested.
+
+1. Imported Authority decision metadata was ignored for permission but could crash readable/JSON operator reports after a durable grant/receipt. Regressions use public `import_graph` with absent, non-object and incorrectly typed manual fields, plus forced Markdown failures. Operator history now includes only validated local decisions; JSON inspection avoids Markdown rendering and failed report writes return the persisted result.
+2. Historical ownership validation compared the old runner proof with current installed verifier bytes. A harmless update could block intact receipt retry and revocation. Historical validation now uses recorded bindings without reading current runner bytes; new grants/admission retain current-runner compatibility. The update regression preserves local admissions, corruption checks and one-receipt behavior.
+
+All three reproducing tests failed before the fixes. The affected CLI/lifecycle/context/core set then passed all 46 tests in 64.252 seconds. Current-code/filesystem checks run after the short recorded-context snapshot. Both full post-fix suites passed as recorded above. No minor findings were deferred.
+
+## Execution rulings and remaining limits
+
+| Decision | Reason | Cost if wrong |
+| --- | --- | --- |
+| Native sequential implementation, one final reviewer | Preserves the user's approved execution choice. | Slower than parallel implementation. |
+| Distinct manual policy version `observed-service-manual-v1` | Makes the selected permission mode explicit; profile/version wording in the plan was ambiguous. | Consumers expecting the legacy version string must adapt. |
+| Denial metadata has null TTL and expiry at issuance | Denial is retained by decision precedence, independently of expiry. | Consumers must use sequence/allowed semantics rather than expiry alone. |
+| Inspect/list show recorded status; grant/new admission probe physically | Historical inspection works offline and source checks occur before consequential steps. | A recorded APPROVED label can become unusable before the next probe. |
+| Publish tested work under the standing commit/push authorization | The user already requested repository publication for continuation. | The implementation becomes public under that authorization. |
+| Same-user shell/DB writers remain trusted | The guarantee applies to the bounded API model; general execution needs separate identities. | A shell agent with operator privileges can grant itself permission. |
+| Source edits after the final physical probe remain possible | This milestone observes freshness and executes only a simulated receipt; real mutation needs an atomic version check. | A late edit may escape the probe; a future executor must close that gap. |
+| Latest-grant expiry follows configured wall time | Sequences protect precedence, not elapsed time after rollback. | Clock rollback can extend the apparent lifetime of the latest grant. |
+| Simultaneous loss of retry mapping and effect admission cannot establish old execution | Remaining unadmitted graph history is indistinguishable from imports. | Double metadata loss can defeat historical deduplication. |
+| POSIX runtime verification remains outstanding | Windows locks/junctions were exercised; portable branches were inspected. | Platform-specific behavior may fail until tested there. |
+| Real writes/deployment credentials/authenticated identity remain deferred | Scope is local audited permission for simulated receipts. | Deployments expecting execution or authentication still need those integrations. |
+
+The last six rows resolve every behavior the reviewer declined to judge; none was silently discarded. Full task-completion evidence, preflight interfaces and rulings are preserved in [the execution record](human-authority-execution.md). Private example `work/manual-authority-demo-20261009` was separately run through the new default CLI with recorded decisions and actual Docker; it remains `AWAITING_APPROVAL`, with no Authority or Effect, for local review.
